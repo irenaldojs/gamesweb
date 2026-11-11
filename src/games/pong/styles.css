@@ -1,0 +1,9 @@
+.pong-view { min-width: 0; }
+.pong-heading { display: flex; align-items: end; justify-content: space-between; gap: 6px; margin-bottom: 6px; }
+.pong-heading .section-heading { margin-top: 1px; }
+.pong-canvas { display: none; width: min(800px, 100%); height: auto; border: 7px solid #e7eddf; border-radius: 10px; background: var(--green); box-shadow: 0 18px 38px rgba(22,75,58,0.18); touch-action: none; }
+.pong-canvas.visible { display: block; }
+
+@media (max-width: 520px) {
+  .pong-heading { align-items: center; }
+}

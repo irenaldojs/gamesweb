@@ -1,0 +1,330 @@
+.chess-view {
+  min-width: 0;
+  width: 100%;
+}
+
+.chess-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.chess-heading .section-heading {
+  margin-top: 5px;
+}
+
+.chess-layout {
+  display: grid;
+  grid-template-columns: auto minmax(240px, 300px);
+  gap: 24px;
+  align-items: start;
+  justify-content: center;
+  width: 100%;
+}
+
+/* Tabuleiro Container */
+.chess-board-wrapper {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 16px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(22, 75, 58, 0.08);
+}
+
+.chess-board {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  grid-template-rows: repeat(8, 1fr);
+  width: min(560px, 80vw);
+  height: min(560px, 80vw);
+  border: 4px solid #10392c;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: inset 0 0 12px rgba(0, 0, 0, 0.15);
+  user-select: none;
+  touch-action: manipulation;
+}
+
+/* Casas do tabuleiro */
+.chess-square {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color 140ms ease;
+}
+
+.chess-square.light {
+  background-color: #f0f4ea;
+}
+
+.chess-square.dark {
+  background-color: #245643;
+}
+
+.chess-square.selected {
+  background-color: #c8eb5c !important;
+}
+
+.chess-square.last-move {
+  background-color: rgba(211, 243, 107, 0.45) !important;
+}
+
+.chess-square.in-check {
+  background-color: rgba(255, 128, 104, 0.6) !important;
+  animation: pulse-check 1s infinite alternate;
+}
+
+@keyframes pulse-check {
+  from { box-shadow: inset 0 0 8px rgba(255, 60, 40, 0.8); }
+  to { box-shadow: inset 0 0 20px rgba(255, 0, 0, 0.9); }
+}
+
+/* Marcador de movimento válido */
+.chess-move-dot {
+  position: absolute;
+  width: 26%;
+  height: 26%;
+  border-radius: 50%;
+  background: rgba(22, 75, 58, 0.35);
+  pointer-events: none;
+  transition: transform 120ms ease;
+}
+
+.chess-square.dark .chess-move-dot {
+  background: rgba(211, 243, 107, 0.65);
+}
+
+.chess-square:hover .chess-move-dot {
+  transform: scale(1.25);
+}
+
+.chess-capture-ring {
+  position: absolute;
+  inset: 6px;
+  border-radius: 50%;
+  border: 4px solid rgba(255, 128, 104, 0.8);
+  pointer-events: none;
+}
+
+/* Coordenadas na borda */
+.coord-rank, .coord-file {
+  position: absolute;
+  font: 600 0.65rem var(--mono);
+  pointer-events: none;
+  opacity: 0.65;
+}
+
+.coord-rank {
+  top: 3px;
+  left: 4px;
+}
+
+.coord-file {
+  bottom: 2px;
+  right: 4px;
+}
+
+.chess-square.light .coord-rank,
+.chess-square.light .coord-file {
+  color: #10392c;
+}
+
+.chess-square.dark .coord-rank,
+.chess-square.dark .coord-file {
+  color: #f0f4ea;
+}
+
+/* Peças */
+.chess-piece {
+  font-size: clamp(28px, 6.5vw, 50px);
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 140ms ease;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.25));
+}
+
+.chess-square:hover .chess-piece {
+  transform: scale(1.08);
+}
+
+.piece-white {
+  color: #ffffff;
+  text-shadow: 0 0 3px #1a3024, 0 1px 2px #000;
+}
+
+.piece-black {
+  color: #1a1f1c;
+  text-shadow: 0 0 2px rgba(255, 255, 255, 0.35);
+}
+
+/* Painel de Informações do Xadrez */
+.chess-info-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.chess-status-card {
+  padding: 18px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: 0 4px 16px rgba(22, 75, 58, 0.05);
+}
+
+.turn-indicator {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.turn-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.turn-pill.white {
+  background: #f4f6f1;
+  color: #1a3024;
+  border: 1px solid #d5ddd1;
+}
+
+.turn-pill.black {
+  background: #10392c;
+  color: #ffffff;
+}
+
+.role-badge {
+  font: 500 0.72rem var(--mono);
+  color: var(--muted);
+}
+
+/* Peças Capturadas */
+.captured-box {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.captured-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 1.25rem;
+  min-height: 28px;
+}
+
+.captured-label {
+  font: 500 0.7rem var(--mono);
+  color: var(--muted);
+  width: 45px;
+}
+
+.captured-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+}
+
+/* Histórico de lances */
+.chess-history-card {
+  padding: 16px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.history-list {
+  max-height: 140px;
+  overflow-y: auto;
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font: 500 0.8rem var(--mono);
+  color: #43544b;
+}
+
+.history-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 3px 6px;
+  border-radius: 4px;
+}
+
+.history-item:nth-child(even) {
+  background: #f7f9f5;
+}
+
+.chess-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Card Art do Xadrez para a Biblioteca */
+.chess-art {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #10392c 0%, #164b3a 100%);
+}
+
+.chess-art-board {
+  display: grid;
+  grid-template-columns: repeat(4, 30px);
+  grid-template-rows: repeat(4, 30px);
+  border: 2px solid rgba(245, 255, 240, 0.4);
+  border-radius: 4px;
+  overflow: hidden;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
+}
+
+.chess-art-square {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+}
+
+.chess-art-square.light {
+  background-color: #f2f4ef;
+  color: #10392c;
+}
+
+.chess-art-square.dark {
+  background-color: #194635;
+  color: #d3f36b;
+}
+
+@media (max-width: 860px) {
+  .chess-layout {
+    grid-template-columns: 1fr;
+    justify-items: center;
+  }
+  .chess-info-panel {
+    width: min(560px, 80vw);
+  }
+}

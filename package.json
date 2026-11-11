@@ -7,7 +7,7 @@
     "dev": "vite --host 0.0.0.0",
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0",
-    "server": "bun --hot server.ts"
+    "server": "bun --hot server/index.ts"
   },
   "dependencies": {
     "react": "^19.1.0",

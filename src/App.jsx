@@ -1,8 +1,21 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { HubGameSDK } from './HubSDK.js';
-import PongGame from './PongGame.jsx';
+import { HubGameSDK } from './sdk/HubSDK.js';
+import { GAMES_CATALOG } from './games/gamesRegistry.jsx';
+import GoogleLoginModal from './components/GoogleLoginModal.jsx';
+import InviteToast from './components/InviteToast.jsx';
+import MatchmakingModal from './components/MatchmakingModal.jsx';
+import ChallengeModal from './components/ChallengeModal.jsx';
 
-function getPlayer() {
+function getStoredUser() {
+  const stored = localStorage.getItem('hub-user-session');
+  if (stored) {
+    try {
+      return JSON.parse(stored);
+    } catch {
+      // continua para fallback
+    }
+  }
+
   let playerId = localStorage.getItem('hub-player-id');
   if (!playerId) {
     playerId = `usr_${crypto.randomUUID()}`;
@@ -15,52 +28,171 @@ function getPlayer() {
     localStorage.setItem('hub-player-name', playerName);
   }
 
-  return { playerId, playerName };
+  return { id: playerId, name: playerName };
 }
 
 export default function App() {
-  const [player] = useState(getPlayer);
+  const [currentUser, setCurrentUser] = useState(getStoredUser);
   const [sdk] = useState(() => {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const serverUrl = import.meta.env.VITE_WS_URL || `${protocol}//${window.location.host}/ws`;
     return new HubGameSDK(serverUrl);
   });
+
   const [profile, setProfile] = useState(null);
   const [connectionError, setConnectionError] = useState('');
   const [activeGame, setActiveGame] = useState(null);
   const [roomCode, setRoomCode] = useState('');
   const [messages, setMessages] = useState([]);
   const [chatMessage, setChatMessage] = useState('');
-  const chatBoxRef = useRef(null);
+  const [isChatOverlayOpen, setIsChatOverlayOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
 
+  // Abas e Dados da Comunidade (SQLite)
+  const [activeTab, setActiveTab] = useState('chat'); // 'chat' | 'friends' | 'ranking'
+  const [friends, setFriends] = useState([]);
+  const [ranks, setRanks] = useState([]);
+  const [friendInput, setFriendInput] = useState('');
+
+  // Modais e Interações
+  const [isGoogleModalOpen, setIsGoogleModalOpen] = useState(false);
+  const [incomingInvite, setIncomingInvite] = useState(null);
+  const [matchmakingGameId, setMatchmakingGameId] = useState(null);
+  const [challengeTarget, setChallengeTarget] = useState(null);
+  const [bannerAlert, setBannerAlert] = useState('');
+
+  const chatBoxRef = useRef(null);
+  const chatBoxOverlayRef = useRef(null);
+  const chatInputOverlayRef = useRef(null);
+  const activeGameRef = useRef(activeGame);
+  const isChatOverlayOpenRef = useRef(isChatOverlayOpen);
+
+  useEffect(() => {
+    activeGameRef.current = activeGame;
+    if (!activeGame) {
+      setIsChatOverlayOpen(false);
+      setUnreadCount(0);
+    }
+  }, [activeGame]);
+
+  useEffect(() => {
+    isChatOverlayOpenRef.current = isChatOverlayOpen;
+    if (isChatOverlayOpen) {
+      setUnreadCount(0);
+      const timer = setTimeout(() => chatInputOverlayRef.current?.focus(), 60);
+      return () => clearTimeout(timer);
+    }
+  }, [isChatOverlayOpen]);
+
+  // Conexão WebSocket e Listeners
   useEffect(() => {
     const handleChat = (event) => {
       setMessages((current) => [...current.slice(-99), event.detail]);
+      if (activeGameRef.current && !isChatOverlayOpenRef.current) {
+        setUnreadCount((c) => c + 1);
+      }
     };
+
     const handleRank = (event) => {
-      const updatedProfile = event.detail.ranks.find((rank) => rank.id === player.playerId);
-      if (updatedProfile) setProfile(updatedProfile);
+      const list = event.detail.ranks || [];
+      setRanks(list);
+      const updatedProfile = list.find((r) => r.id === (currentUser.id || currentUser.playerId));
+      if (updatedProfile) {
+        setProfile((prev) => ({ ...prev, ...updatedProfile }));
+      }
     };
-    const handleRoomJoined = () => setActiveGame('pong');
+
+    const handleFriends = (event) => {
+      setFriends(event.detail.friends || []);
+    };
+
+    const handleRoomJoined = (event) => {
+      setMatchmakingGameId(null);
+      const targetGame = event.detail?.gameId || 'pong';
+      setActiveGame(targetGame);
+    };
+
+    const handleGameStart = (event) => {
+      setMatchmakingGameId(null);
+      if (event.detail?.gameId) {
+        setActiveGame(event.detail.gameId);
+      }
+    };
+
+    const handleInviteReceived = (event) => {
+      setIncomingInvite(event.detail);
+    };
+
+    const handleInviteDeclined = (event) => {
+      showTemporaryAlert(`${event.detail?.byUsername || 'O jogador'} recusou o desafio.`);
+    };
+
+    const handleInviteError = (event) => {
+      showTemporaryAlert(event.detail?.message || 'Não foi possível convidar.');
+    };
 
     sdk.addEventListener('CHAT_GLOBAL_MSG', handleChat);
     sdk.addEventListener('RANK_UPDATED', handleRank);
+    sdk.addEventListener('FRIENDS_UPDATED', handleFriends);
     sdk.addEventListener('ROOM_JOINED', handleRoomJoined);
-    sdk.connect(player.playerId, player.playerName)
+    sdk.addEventListener('GAME_START', handleGameStart);
+    sdk.addEventListener('INVITE_RECEIVED', handleInviteReceived);
+    sdk.addEventListener('INVITE_DECLINED', handleInviteDeclined);
+    sdk.addEventListener('INVITE_ERROR', handleInviteError);
+
+    sdk.connect(currentUser)
       .then(setProfile)
       .catch(() => setConnectionError('Servidor indisponível'));
 
     return () => {
       sdk.removeEventListener('CHAT_GLOBAL_MSG', handleChat);
       sdk.removeEventListener('RANK_UPDATED', handleRank);
+      sdk.removeEventListener('FRIENDS_UPDATED', handleFriends);
       sdk.removeEventListener('ROOM_JOINED', handleRoomJoined);
+      sdk.removeEventListener('GAME_START', handleGameStart);
+      sdk.removeEventListener('INVITE_RECEIVED', handleInviteReceived);
+      sdk.removeEventListener('INVITE_DECLINED', handleInviteDeclined);
+      sdk.removeEventListener('INVITE_ERROR', handleInviteError);
       sdk.disconnect();
     };
-  }, [player, sdk]);
+  }, [currentUser, sdk]);
 
   useEffect(() => {
     if (chatBoxRef.current) chatBoxRef.current.scrollTop = chatBoxRef.current.scrollHeight;
-  }, [messages]);
+    if (chatBoxOverlayRef.current) chatBoxOverlayRef.current.scrollTop = chatBoxOverlayRef.current.scrollHeight;
+  }, [messages, isChatOverlayOpen]);
+
+  // Teclas de atalho para chat in-game
+  useEffect(() => {
+    if (!activeGame) return;
+    const handleKeyDown = (e) => {
+      const isInput = e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA';
+      if (e.key === 'Escape' && isChatOverlayOpenRef.current) {
+        e.preventDefault();
+        setIsChatOverlayOpen(false);
+        return;
+      }
+      if (!isInput && (e.key === 't' || e.key === 'T' || e.key === 'Enter')) {
+        e.preventDefault();
+        setIsChatOverlayOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [activeGame]);
+
+  function showTemporaryAlert(msg) {
+    setBannerAlert(msg);
+    setTimeout(() => setBannerAlert(''), 4000);
+  }
+
+  function handleGoogleLogin(userData) {
+    localStorage.setItem('hub-user-session', JSON.stringify(userData));
+    localStorage.setItem('hub-player-id', userData.id);
+    localStorage.setItem('hub-player-name', userData.name);
+    setCurrentUser(userData);
+    sdk.loginWithGoogle(userData);
+  }
 
   function sendChat(event) {
     event.preventDefault();
@@ -70,82 +202,456 @@ export default function App() {
     setChatMessage('');
   }
 
+  function exitToHub() {
+    sdk.leaveRoom();
+    if (matchmakingGameId) {
+      sdk.leaveQueue(matchmakingGameId);
+      setMatchmakingGameId(null);
+    }
+    setActiveGame(null);
+    setIsChatOverlayOpen(false);
+  }
+
   function joinRoom(event) {
     event.preventDefault();
     const code = roomCode.trim().toUpperCase();
     if (!code || !profile) return;
-    setActiveGame('pong');
     sdk.joinRoom(code);
+  }
+
+  // Fila de Matchmaking
+  function startMatchmaking(gameId) {
+    setMatchmakingGameId(gameId);
+    sdk.joinQueue(gameId);
+  }
+
+  function cancelMatchmaking() {
+    if (matchmakingGameId) {
+      sdk.leaveQueue(matchmakingGameId);
+      setMatchmakingGameId(null);
+    }
+  }
+
+  // Desafios / Convites
+  function openChallenge(player) {
+    if (player.id === profile?.id || player.senderId === profile?.id) return;
+    setChallengeTarget({
+      id: player.id || player.senderId,
+      name: player.name || player.senderName,
+    });
+  }
+
+  function sendChallenge(targetPlayerId, gameId) {
+    sdk.sendInvite(targetPlayerId, gameId);
+    showTemporaryAlert('Convite de partida enviado! Aguardando resposta...');
+  }
+
+  function acceptInvite(invite) {
+    setIncomingInvite(null);
+    sdk.acceptInvite(invite.inviteId, invite.fromPlayerId, invite.gameId);
+  }
+
+  function declineInvite(invite) {
+    setIncomingInvite(null);
+    sdk.declineInvite(invite.inviteId, invite.fromPlayerId);
+  }
+
+  // Gestão de Amigos
+  function addFriend(e) {
+    e.preventDefault();
+    const target = friendInput.trim();
+    if (!target) return;
+    sdk.addFriend(target);
+    setFriendInput('');
+    showTemporaryAlert(`Solicitação para "${target}" processada.`);
+  }
+
+  function removeFriend(friendId) {
+    sdk.removeFriend(friendId);
   }
 
   return (
     <>
       <header className="topbar">
-        <button className="brand" onClick={() => setActiveGame(null)} aria-label="Voltar para a biblioteca">
+        <button
+          className="brand"
+          onClick={exitToHub}
+          aria-label="Voltar para a biblioteca"
+        >
           <span className="brand-mark">GH</span> GameHub
         </button>
         <div className="topbar-meta">
           <span className={`online-dot ${profile ? '' : 'offline'}`} />
-          <span>{profile ? 'Servidor online' : connectionError || 'Conectando...'}</span>
+          <span>{profile ? 'Servidor online (SQLite)' : connectionError || 'Conectando...'}</span>
         </div>
         {activeGame && (
-          <button className="nav-button" onClick={() => setActiveGame(null)}>← Biblioteca</button>
+          <div className="topbar-actions">
+            <button
+              type="button"
+              className={`chat-toggle-button ${isChatOverlayOpen ? 'active' : ''}`}
+              onClick={() => setIsChatOverlayOpen((prev) => !prev)}
+              title="Abrir/fechar chat global (Atalho: T ou Enter)"
+            >
+              💬 Chat
+              {unreadCount > 0 && !isChatOverlayOpen && (
+                <span className="chat-badge">{unreadCount}</span>
+              )}
+            </button>
+            <button
+              className="nav-button"
+              onClick={exitToHub}
+            >
+              ← Biblioteca
+            </button>
+          </div>
         )}
       </header>
 
-      <div className="app-shell">
+      {/* Banner de alerta transitório */}
+      {bannerAlert && (
+        <div style={{
+          position: 'fixed',
+          top: '64px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          zIndex: 1200,
+          background: 'var(--green-dark)',
+          color: '#ffffff',
+          padding: '8px 18px',
+          borderRadius: '20px',
+          fontSize: '0.84rem',
+          boxShadow: '0 4px 16px rgba(0,0,0,0.2)',
+          fontWeight: 600,
+        }}>
+          ℹ️ {bannerAlert}
+        </div>
+      )}
+
+      <div className={activeGame ? 'app-shell ingame-mode' : 'app-shell'}>
         <main className="main-content">
           <section className={activeGame ? 'view hidden' : 'view'} aria-hidden={Boolean(activeGame)}>
-            <div className="section-kicker">Biblioteca de jogos / 01</div>
-                       <div className="game-list">
-              <button className="game-card" onClick={() => setActiveGame('pong')}>
-                <span className="game-art" aria-hidden="true">
-                  <span className="game-art-label">GameHub Original / 001</span>
-                  <span className="court">
-                    <span className="court-paddle left" />
-                    <span className="court-paddle right" />
-                    <span className="court-ball" />
-                  </span>
-                </span>
-                <span className="game-info">
-                  <span className="game-overline"><span className="badge">Arcade</span><span>1–2 jogadores</span></span>
-                  <span className="game-title">Pong</span>
-                  <span className="game-description">Reflexos rápidos. Disputa direta. Uma mesa clássica, pronta para jogar.</span>
-                  <span className="game-footer">
-                    <span className="game-meta">Partidas de 5 pontos</span>
-                    <span className="play-button">Jogar agora <span aria-hidden="true">→</span></span>
-                  </span>
-                </span>
-              </button>
+            <div className="section-kicker">
+              Biblioteca de jogos / {String(GAMES_CATALOG.length).padStart(2, '0')}
+            </div>
+            <div className="game-list">
+              {GAMES_CATALOG.map((game) => (
+                <div key={game.id} className="game-card">
+                  <div
+                    className="game-art"
+                    aria-hidden="true"
+                    onClick={() => setActiveGame(game.id)}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    <span className="game-art-label">GameHub Original / {game.number}</span>
+                    {game.renderArt()}
+                  </div>
+                  <div className="game-info">
+                    <div className="game-overline">
+                      <span className="badge">{game.category}</span>
+                      <span>{game.players}</span>
+                    </div>
+                    <span
+                      className="game-title"
+                      onClick={() => setActiveGame(game.id)}
+                      style={{ cursor: 'pointer' }}
+                    >
+                      {game.title}
+                    </span>
+                    <span className="game-description">{game.description}</span>
+                    <div className="game-footer">
+                      <span className="game-meta">{game.meta}</span>
+                      <div className="game-card-actions">
+                        <button
+                          type="button"
+                          className="quick-queue-btn"
+                          onClick={() => startMatchmaking(game.id)}
+                          title="Entrar na fila e encontrar um jogador online automaticamente"
+                        >
+                          ⚡ Fila Rápida
+                        </button>
+                        <button
+                          type="button"
+                          className="play-button"
+                          onClick={() => setActiveGame(game.id)}
+                        >
+                          Jogar <span aria-hidden="true">→</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           </section>
 
-          <section className={activeGame === 'pong' ? 'view' : 'view hidden'} aria-hidden={activeGame !== 'pong'}>
-            <PongGame sdk={sdk} playerId={player.playerId} connected={Boolean(profile)} active={activeGame === 'pong'} />
-          </section>
+          {GAMES_CATALOG.map((game) => {
+            const GameComponent = game.component;
+            const isThisGameActive = activeGame === game.id;
+            return (
+              <section
+                key={game.id}
+                className={isThisGameActive ? 'view' : 'view hidden'}
+                aria-hidden={!isThisGameActive}
+              >
+                <GameComponent
+                  sdk={sdk}
+                  playerId={playerIdentifier(profile || currentUser)}
+                  connected={Boolean(profile)}
+                  active={isThisGameActive}
+                  onExitToHub={exitToHub}
+                />
+              </section>
+            );
+          })}
         </main>
 
-        <aside className="sidebar">
-          <section className="profile-panel">
-            <div className="panel-heading">Seu perfil</div>
-            <div className="user-info">{profile?.name || 'Conectando...'}</div>
-            <div className="rank-info">Vitórias: {profile?.wins ?? 0} <span>·</span> Derrotas: {profile?.losses ?? 0}</div>
-          </section>
+        {!activeGame && (
+          <aside className="sidebar">
+            {/* Perfil com Suporte a Google */}
+            <section className="profile-panel">
+              <div className="panel-heading">Seu perfil</div>
+              <div className="profile-row">
+                <div className="profile-user-group">
+                  <div className="user-avatar-circle">
+                    {profile?.avatar_url ? (
+                      <img src={profile.avatar_url} alt={profile.name} />
+                    ) : (
+                      <span>{(profile?.name || 'P')[0].toUpperCase()}</span>
+                    )}
+                  </div>
+                  <div>
+                    <div className="user-info">{profile?.name || 'Conectando...'}</div>
+                    <div className="rank-info">
+                      V: {profile?.wins ?? 0} <span>·</span> D: {profile?.losses ?? 0}
+                    </div>
+                  </div>
+                </div>
 
-          <form className="join-panel" onSubmit={joinRoom}>
-            <label className="panel-heading" htmlFor="room-code-input">Entrar em uma sala</label>
-            <input
-              id="room-code-input"
-              value={roomCode}
-              onChange={(event) => setRoomCode(event.target.value)}
-              placeholder="Código da sala"
-              disabled={!profile}
-            />
-            <button className="subtle-button" disabled={!profile || !roomCode.trim()}>Entrar na partida</button>
-          </form>
+                <button
+                  type="button"
+                  className="profile-google-badge"
+                  onClick={() => setIsGoogleModalOpen(true)}
+                  title="Conectar ou trocar conta Google"
+                >
+                  <span>Google</span>
+                  <span>🔄</span>
+                </button>
+              </div>
+            </section>
 
-          <div className="chat-heading"><span>Chat global</span><span className="chat-live">AO VIVO</span></div>
-          <div className="chat-box" ref={chatBoxRef} aria-live="polite">
+            {/* Abas da Sidebar: Chat, Amigos e Ranking */}
+            <div className="sidebar-tabs">
+              <button
+                type="button"
+                className={`sidebar-tab-btn ${activeTab === 'chat' ? 'active' : ''}`}
+                onClick={() => setActiveTab('chat')}
+              >
+                💬 Chat
+              </button>
+              <button
+                type="button"
+                className={`sidebar-tab-btn ${activeTab === 'friends' ? 'active' : ''}`}
+                onClick={() => setActiveTab('friends')}
+              >
+                👥 Amigos ({friends.length})
+              </button>
+              <button
+                type="button"
+                className={`sidebar-tab-btn ${activeTab === 'ranking' ? 'active' : ''}`}
+                onClick={() => {
+                  setActiveTab('ranking');
+                  sdk.getRankings();
+                }}
+              >
+                🏆 Ranking
+              </button>
+            </div>
+
+            {/* CONTEÚDO DA ABA CHAT */}
+            {activeTab === 'chat' && (
+              <>
+                <div className="chat-box" ref={chatBoxRef} aria-live="polite">
+                  {messages.length === 0 && <p className="chat-empty">A conversa começa aqui.</p>}
+                  {messages.map((message, index) => {
+                    const isOtherUser = message.senderId !== (profile?.id || currentUser.id);
+                    return (
+                      <div className="chat-msg" key={`${message.timestamp}-${message.senderId}-${index}`}>
+                        <div className="chat-msg-header">
+                          <strong>{message.senderName}</strong>
+                          {isOtherUser && (
+                            <button
+                              type="button"
+                              className="chat-challenge-btn"
+                              onClick={() => openChallenge(message)}
+                              title="Convidar para jogar agora"
+                            >
+                              ⚔️ Desafiar
+                            </button>
+                          )}
+                        </div>
+                        <span>{message.message}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+                <form className="chat-form" onSubmit={sendChat}>
+                  <input
+                    value={chatMessage}
+                    onChange={(event) => setChatMessage(event.target.value)}
+                    placeholder="Escreva uma mensagem..."
+                    aria-label="Mensagem no chat global"
+                    disabled={!profile}
+                  />
+                  <button disabled={!profile || !chatMessage.trim()}>Enviar</button>
+                </form>
+              </>
+            )}
+
+            {/* CONTEÚDO DA ABA AMIGOS */}
+            {activeTab === 'friends' && (
+              <div className="friends-panel">
+                <form className="friends-add-form" onSubmit={addFriend}>
+                  <input
+                    placeholder="ID ou nome do amigo..."
+                    value={friendInput}
+                    onChange={(e) => setFriendInput(e.target.value)}
+                  />
+                  <button className="subtle-button" disabled={!friendInput.trim()}>
+                    + Adicionar
+                  </button>
+                </form>
+
+                <div className="friends-list">
+                  {friends.length === 0 && (
+                    <p className="chat-empty" style={{ textAlign: 'center', marginTop: '20px' }}>
+                      Nenhum amigo ainda. Desafie alguém no chat para adicioná-lo!
+                    </p>
+                  )}
+                  {friends.map((f) => (
+                    <div key={f.id} className="friend-item-card">
+                      <div className="friend-info-left">
+                        <span className="friend-status-dot online" />
+                        <div className="friend-name-col">
+                          <strong>{f.name}</strong>
+                          <span>{f.wins}V / {f.losses}D</span>
+                        </div>
+                      </div>
+                      <div className="friend-action-group">
+                        <button
+                          type="button"
+                          className="friend-challenge-btn"
+                          onClick={() => openChallenge(f)}
+                        >
+                          ⚔️ Convidar
+                        </button>
+                        <button
+                          type="button"
+                          className="friend-remove-btn"
+                          onClick={() => removeFriend(f.id)}
+                          title="Remover amigo"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* CONTEÚDO DA ABA RANKING (SQLite Leaderboard) */}
+            {activeTab === 'ranking' && (
+              <div className="ranking-panel">
+                <table className="ranking-table">
+                  <thead>
+                    <tr>
+                      <th>#</th>
+                      <th>Jogador</th>
+                      <th>V</th>
+                      <th>D</th>
+                      <th>Win%</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {ranks.map((r, index) => {
+                      const isMe = r.id === (profile?.id || currentUser.id);
+                      const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}º`;
+                      return (
+                        <tr key={r.id} className={isMe ? 'current-user-row' : ''}>
+                          <td className="rank-pos">{medal}</td>
+                          <td>
+                            <div className="rank-user-cell">
+                              <span>{r.name}</span>
+                            </div>
+                          </td>
+                          <td style={{ color: 'var(--green)', fontWeight: 700 }}>{r.wins}</td>
+                          <td style={{ color: 'var(--muted)' }}>{r.losses}</td>
+                          <td>{r.win_rate ?? 0}%</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {/* Entrada em sala por código (Fallback / Acesso direto) */}
+            <form className="join-panel" onSubmit={joinRoom}>
+              <label className="panel-heading" htmlFor="room-code-input">Código manual de sala</label>
+              <input
+                id="room-code-input"
+                value={roomCode}
+                onChange={(event) => setRoomCode(event.target.value)}
+                placeholder="Código RM-XXXX"
+                disabled={!profile}
+              />
+              <button className="subtle-button" disabled={!profile || !roomCode.trim()}>
+                Entrar na partida
+              </button>
+            </form>
+          </aside>
+        )}
+      </div>
+
+      {/* Botão flutuante de chat in-game */}
+      {activeGame && !isChatOverlayOpen && (
+        <button
+          type="button"
+          className="floating-chat-trigger"
+          onClick={() => setIsChatOverlayOpen(true)}
+          aria-label="Abrir chat do hub"
+          title="Atalho: T ou Enter"
+        >
+          <span className="floating-chat-icon">💬</span>
+          <span>Chat</span>
+          <span className="chat-key-badge">T</span>
+          {unreadCount > 0 && (
+            <span className="chat-badge">{unreadCount}</span>
+          )}
+        </button>
+      )}
+
+      {/* Chat flutuante sobreposto in-game */}
+      {activeGame && isChatOverlayOpen && (
+        <aside className="ingame-chat-drawer" role="dialog" aria-label="Chat Global Sobreposto">
+          <div className="ingame-chat-header">
+            <div className="chat-heading">
+              <span>Chat global</span>
+              <span className="chat-live">AO VIVO</span>
+            </div>
+            <div className="ingame-chat-header-actions">
+              <span className="chat-key-hint">ESC</span>
+              <button
+                type="button"
+                className="chat-close-btn"
+                onClick={() => setIsChatOverlayOpen(false)}
+                aria-label="Fechar chat"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+          <div className="chat-box" ref={chatBoxOverlayRef} aria-live="polite">
             {messages.length === 0 && <p className="chat-empty">A conversa começa aqui.</p>}
             {messages.map((message, index) => (
               <div className="chat-msg" key={`${message.timestamp}-${message.senderId}-${index}`}>
@@ -155,16 +661,50 @@ export default function App() {
           </div>
           <form className="chat-form" onSubmit={sendChat}>
             <input
+              ref={chatInputOverlayRef}
               value={chatMessage}
               onChange={(event) => setChatMessage(event.target.value)}
-              placeholder="Escreva uma mensagem..."
+              placeholder="Escreva uma mensagem... (Enter)"
               aria-label="Mensagem no chat global"
               disabled={!profile}
             />
             <button disabled={!profile || !chatMessage.trim()}>Enviar</button>
           </form>
         </aside>
-      </div>
+      )}
+
+      {/* Modal de Login com Google */}
+      <GoogleLoginModal
+        isOpen={isGoogleModalOpen}
+        onClose={() => setIsGoogleModalOpen(false)}
+        onLogin={handleGoogleLogin}
+      />
+
+      {/* Toast Flutuante de Convite de Partida Recebido */}
+      <InviteToast
+        invite={incomingInvite}
+        onAccept={acceptInvite}
+        onDecline={declineInvite}
+      />
+
+      {/* Modal de Fila de Busca de Partida (Matchmaking) */}
+      {matchmakingGameId && (
+        <MatchmakingModal
+          gameId={matchmakingGameId}
+          onCancel={cancelMatchmaking}
+        />
+      )}
+
+      {/* Modal para Escolher Jogo ao Desafiar um Jogador */}
+      <ChallengeModal
+        targetPlayer={challengeTarget}
+        onClose={() => setChallengeTarget(null)}
+        onSendChallenge={sendChallenge}
+      />
     </>
   );
+}
+
+function playerIdentifier(u) {
+  return u?.id || u?.playerId || '';
 }

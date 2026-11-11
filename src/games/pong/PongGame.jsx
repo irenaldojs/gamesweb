@@ -1,4 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
+import GameDialog, { OpponentLeftDialog, GameEndDialog } from '../../components/GameDialog.jsx';
+import './styles.css';
 
 const WIDTH = 800;
 const HEIGHT = 400;
@@ -27,7 +29,7 @@ function createGameState() {
   };
 }
 
-export default function PongGame({ sdk, playerId, connected, active }) {
+export default function PongGame({ sdk, playerId, connected, active, onExitToHub }) {
   const [role, setRole] = useState(sdk.role);
   const [phase, setPhase] = useState('ready');
   const [countdown, setCountdown] = useState(3);
@@ -35,6 +37,7 @@ export default function PongGame({ sdk, playerId, connected, active }) {
   const [result, setResult] = useState('');
   const [pointMessage, setPointMessage] = useState('');
   const [multiplayerReady, setMultiplayerReady] = useState(false);
+  const [opponentLeftInfo, setOpponentLeftInfo] = useState(null);
   const canvasRef = useRef(null);
   const gameRef = useRef(createGameState());
   const reportedRef = useRef(false);
@@ -111,15 +114,32 @@ export default function PongGame({ sdk, playerId, connected, active }) {
       }
     };
 
+    const onPlayerLeft = (event) => {
+      const { username, reason } = event.detail || {};
+      const wasPlaying = phaseRef.current === 'playing' || phaseRef.current === 'countdown' || phaseRef.current === 'point';
+      setOpponentLeftInfo({
+        opponentName: username,
+        wonByForfeit: wasPlaying,
+        reason: reason || 'disconnected',
+      });
+      setPhase('opponent_left');
+      if (wasPlaying && !reportedRef.current && sdk.role !== 'solo') {
+        reportedRef.current = true;
+        sdk.reportMatchEnd(playerId);
+      }
+    };
+
     sdk.addEventListener('ROOM_CREATED', onRoomCreated);
     sdk.addEventListener('ROOM_JOINED', onRoomJoined);
     sdk.addEventListener('GAME_START', onGameStart);
     sdk.addEventListener('GAME_SYNC_RELAY', onGameSync);
+    sdk.addEventListener('PLAYER_LEFT', onPlayerLeft);
     return () => {
       sdk.removeEventListener('ROOM_CREATED', onRoomCreated);
       sdk.removeEventListener('ROOM_JOINED', onRoomJoined);
       sdk.removeEventListener('GAME_START', onGameStart);
       sdk.removeEventListener('GAME_SYNC_RELAY', onGameSync);
+      sdk.removeEventListener('PLAYER_LEFT', onPlayerLeft);
     };
   }, [sdk]);
 
@@ -337,8 +357,7 @@ export default function PongGame({ sdk, playerId, connected, active }) {
     <div className="pong-view">
       <div className="pong-heading">
         <div>
-          <div className="section-kicker">Arcade / 001</div>
-          <h1 className="section-heading">Pong</h1>
+          <h5 className="section-heading">Pong</h5>
         </div>
       </div>
 
@@ -353,51 +372,81 @@ export default function PongGame({ sdk, playerId, connected, active }) {
         />
         {phase === 'playing' && <div className="game-hint">Mova o cursor para controlar a raquete</div>}
 
-        {phase !== 'playing' && (
-          <div className="game-modal-backdrop">
-            <section className="game-dialog" role="dialog" aria-modal="true" aria-live="polite">
-              <span className="lobby-mark">01 / ARCADE</span>
-              {phase === 'countdown' ? (
-                <>
-                  <h2>Prepare-se</h2>
-                  <div className="countdown-number">{countdown}</div>
-                </>
-              ) : phase === 'point' ? (
-                <>
-                  <h2>{pointMessage}</h2>
-                  <p>Placar: {sdk.role === 'guest' ? gameRef.current.opponentScore : gameRef.current.playerScore}–{sdk.role === 'guest' ? gameRef.current.playerScore : gameRef.current.opponentScore}</p>
-                  <button className="primary-button" onClick={continueAfterPoint}>Continuar sem contagem</button>
-                </>
-              ) : phase === 'finished' ? (
-                <>
-                  <h2>{result}</h2>
-                  <p>Placar final: {sdk.role === 'guest' ? gameRef.current.opponentScore : gameRef.current.playerScore}–{sdk.role === 'guest' ? gameRef.current.playerScore : gameRef.current.opponentScore}</p>
-                  <button className="primary-button" onClick={sdk.role === 'solo' ? startSolo : () => {
-                    sdk.role = null;
-                    setRole(null);
-                    setPhase('ready');
-                    setStatus('Crie uma nova sala para outra partida.');
-                  }}>Jogar novamente</button>
-                </>
-              ) : (
-                <>
-                  <h2>{role === 'host' || role === 'guest' ? 'Partida pronta?' : 'Antes de começar'}</h2>
-                  <p>{role === 'host' || role === 'guest' ? 'A contagem começa quando alguém iniciar.' : 'Prepare-se para entrar na quadra.'}</p>
-                  <div className="lobby-actions">
-                    {role === 'host' || role === 'guest' ? (
-                      <button className="primary-button" onClick={startMultiplayer} disabled={!multiplayerReady}>Iniciar</button>
-                    ) : (
-                      <button className="primary-button" onClick={startSolo}>Iniciar</button>
-                    )}
-                    {role !== 'host' && role !== 'guest' && (
-                      <button className="secondary-button" onClick={() => sdk.createRoom('pong')} disabled={!connected}>Criar sala</button>
-                    )}
-                  </div>
-                </>
-              )}
-              {status && phase !== 'countdown' && <div className="room-status" role="status">{status}</div>}
-            </section>
-          </div>
+        {phase === 'opponent_left' && (
+          <OpponentLeftDialog
+            opponentName={opponentLeftInfo?.opponentName}
+            wonByForfeit={opponentLeftInfo?.wonByForfeit}
+            reason={opponentLeftInfo?.reason}
+            onPlayAgain={() => {
+              setOpponentLeftInfo(null);
+              sdk.role = null;
+              setRole(null);
+              setPhase('ready');
+              setStatus('Crie uma nova sala para outra partida.');
+            }}
+            onExitToHub={onExitToHub}
+            status={status}
+          />
+        )}
+
+        {phase === 'finished' && (
+          <GameEndDialog
+            kicker="01 / ARCADE"
+            title={result}
+            message={`Placar final: ${sdk.role === 'guest' ? gameRef.current.opponentScore : gameRef.current.playerScore}–${sdk.role === 'guest' ? gameRef.current.playerScore : gameRef.current.opponentScore}`}
+            onPlayAgain={sdk.role === 'solo' ? startSolo : () => {
+              sdk.role = null;
+              setRole(null);
+              setPhase('ready');
+              setStatus('Crie uma nova sala para outra partida.');
+            }}
+            onExitToHub={onExitToHub}
+            status={status}
+          />
+        )}
+
+        {phase === 'point' && (
+          <GameDialog
+            kicker="01 / ARCADE"
+            title={pointMessage}
+            message={`Placar: ${sdk.role === 'guest' ? gameRef.current.opponentScore : gameRef.current.playerScore}–${sdk.role === 'guest' ? gameRef.current.playerScore : gameRef.current.opponentScore}`}
+            primaryAction={{
+              label: 'Continuar sem contagem',
+              onClick: continueAfterPoint,
+            }}
+          />
+        )}
+
+        {phase === 'countdown' && (
+          <GameDialog kicker="01 / ARCADE" title="Prepare-se">
+            <div className="countdown-number">{countdown}</div>
+          </GameDialog>
+        )}
+
+        {phase === 'ready' && (
+          <GameDialog
+            kicker="01 / ARCADE"
+            title={role === 'host' || role === 'guest' ? 'Partida pronta?' : 'Antes de começar'}
+            message={role === 'host' || role === 'guest' ? 'A contagem começa quando alguém iniciar.' : 'Prepare-se para entrar na quadra.'}
+            status={status}
+            primaryAction={
+              role === 'host' || role === 'guest' ? {
+                label: 'Iniciar',
+                onClick: startMultiplayer,
+                disabled: !multiplayerReady,
+              } : {
+                label: 'Iniciar',
+                onClick: startSolo,
+              }
+            }
+            secondaryAction={
+              role !== 'host' && role !== 'guest' ? {
+                label: 'Criar sala',
+                onClick: () => sdk.createRoom('pong'),
+                disabled: !connected,
+              } : null
+            }
+          />
         )}
       </div>
     </div>
