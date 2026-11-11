@@ -76,8 +76,13 @@ gamesweb/
     │   ├── chess/
     │   │   ├── ChessGame.jsx          # Jogo Xadrez Clássico completo (solo vs IA / multi)
     │   │   └── styles.css
-    │   └── damas/
-    │       ├── DamasGame.jsx          # Jogo de Damas completo (solo vs IA / multi)
+    │   ├── damas/
+    │   │   ├── DamasGame.jsx          # Jogo de Damas completo (solo vs IA / multi)
+    │   │   └── styles.css
+    │   └── domino/
+    │       ├── DominoGame.jsx         # Dominó (2–4 jogadores: IA, mesa local ou online)
+    │       ├── DominoTile.jsx         # Peça visual + arte do card
+    │       ├── dominoEngine.js        # Regras, IA dos bots e layout da mesa (lógica pura)
     │       └── styles.css
 ```
 

@@ -2,6 +2,8 @@ import React from 'react';
 import PongGame from './pong/PongGame.jsx';
 import ChessGame from './chess/ChessGame.jsx';
 import DamasGame from './damas/DamasGame.jsx';
+import DominoGame from './domino/DominoGame.jsx';
+import { DominoArt } from './domino/DominoTile.jsx';
 
 export const GAMES_CATALOG = [
   {
@@ -95,5 +97,16 @@ export const GAMES_CATALOG = [
       </div>
     ),
     component: DamasGame,
+  },
+  {
+    id: 'domino',
+    number: '004',
+    title: 'Dominó',
+    category: 'Clássico',
+    players: '1–4 jogadores',
+    description: 'Encaixe as peças, bloqueie os adversários e bata primeiro! Jogue contra a IA, com amigos no mesmo aparelho ou online.',
+    meta: 'Duplo-seis · até 4 na mesa',
+    renderArt: () => <DominoArt />,
+    component: DominoGame,
   },
 ];
