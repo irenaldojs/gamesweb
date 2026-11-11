@@ -40,6 +40,9 @@ export class HubGameSDK extends EventTarget {
             this.role = 'guest';
             this.inQueue = false;
           }
+          if (type === 'ROOM_CLOSED' || type === 'PLAYER_LEFT') {
+            this.roomId = null;
+          }
           if (type === 'QUEUE_STATUS') {
             this.inQueue = payload.inQueue;
           }
@@ -116,14 +119,6 @@ export class HubGameSDK extends EventTarget {
   }
 
   // Salas & Chat
-  createRoom(gameId) {
-    this._send('ROOM_CREATE', { gameId });
-  }
-
-  joinRoom(roomId) {
-    this._send('ROOM_JOIN', { roomId });
-  }
-
   leaveRoom() {
     if (this.roomId) {
       this._send('ROOM_LEAVE', { roomId: this.roomId });
@@ -132,8 +127,8 @@ export class HubGameSDK extends EventTarget {
     }
   }
 
-  sendChatMessage(message) {
-    this._send('CHAT_GLOBAL_MSG', { message });
+  sendChatMessage(message, conversation = { channel: 'global' }) {
+    return this._send('CHAT_SEND', { ...conversation, message });
   }
 
   sendGameInput(data) {
@@ -147,6 +142,8 @@ export class HubGameSDK extends EventTarget {
   _send(type, payload) {
     if (this.ws?.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify({ type, payload }));
+      return true;
     }
+    return false;
   }
 }

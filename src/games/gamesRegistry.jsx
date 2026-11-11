@@ -29,7 +29,7 @@ export const GAMES_CATALOG = [
     title: 'Xadrez Clássico',
     category: 'Estratégia',
     players: '1–2 jogadores',
-    description: 'Batalha tática no tabuleiro 8x8. Jogue solo contra a IA ou dispute em tempo real via sala multijogador.',
+    description: 'Batalha tática no tabuleiro 8x8. Jogue solo contra a IA ou dispute em tempo real pela fila rápida ou por convite.',
     meta: 'Partidas com ranking',
     renderArt: () => (
       <div className="chess-art-board" aria-hidden="true">

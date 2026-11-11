@@ -1,0 +1,133 @@
+/* Shared table finish for the two classic board games. Catalog art stays independent. */
+.board-game { width: 100%; min-width: 0; --board-gold: #e5c17c; }
+.board-game :is(.chess-layout, .damas-layout) { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 22px; align-items: start; }
+.board-game :is(.chess-board-wrapper, .damas-board-wrapper) {
+  position: relative; min-width: 0; padding: 24px; border: 9px solid #654326; border-radius: 22px;
+  background: repeating-linear-gradient(45deg, #ffffff03 0 2px, transparent 2px 5px), radial-gradient(ellipse at 50% 35%, #23795e, #104c39 65%, #082e24);
+  box-shadow: 0 18px 38px #163a302b, inset 0 0 45px #001b1780, 0 2px 0 #a67c4b, 0 7px 0 #402918;
+}
+.board-game :is(.chess-board-wrapper, .damas-board-wrapper)::before { content: ''; pointer-events: none; position: absolute; inset: -9px; border: 2px solid #ffffff16; border-radius: inherit; }
+.board-game :is(.chess-board, .damas-board) {
+  display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); grid-template-rows: repeat(8, 1fr);
+  width: 100%; aspect-ratio: 1; margin: 18px auto; border: 5px solid #382a1c; border-radius: 5px;
+  box-shadow: 0 0 0 1px #d1ab6766, 0 10px 22px #001b2499; box-sizing: border-box;
+  user-select: none; touch-action: manipulation; isolation: isolate;
+}
+.board-game :is(.chess-square, .damas-square) { position: relative; display: flex; align-items: center; justify-content: center; min-width: 0; padding: 0; border: 0; border-radius: 0; cursor: pointer; transition: box-shadow .2s, background-color .2s; }
+.board-game :is(.chess-square, .damas-square).light { background: linear-gradient(140deg, #f1e8ce, #d9cba7); }
+.board-game :is(.chess-square, .damas-square).dark { background: linear-gradient(140deg, #38715b, #24513f); }
+.board-game :is(.chess-square, .damas-square).last-move { box-shadow: inset 0 0 0 100px #e8c46c32; }
+.board-game :is(.chess-square, .damas-square).selected { background: #97ae66; box-shadow: inset 0 0 0 3px #f2d58e, inset 0 0 22px #f7d57955; z-index: 2; }
+.board-game :is(.chess-square, .damas-square):focus-visible { outline: 3px solid #fff5a8; outline-offset: -3px; z-index: 4; }
+.board-game .chess-square.in-check { background: #ac5949; animation: board-danger 1.4s ease-in-out infinite; }
+.board-game :is(.coord-rank, .coord-file) { position: absolute; pointer-events: none; font: 600 clamp(8px, .9vw, 11px) var(--mono); color: #254e3d; opacity: .8; }
+.board-game .coord-rank { top: 3px; left: 4px; }
+.board-game .coord-file { bottom: 2px; right: 4px; }
+.board-game .dark :is(.coord-rank, .coord-file) { color: #eee3bf; }
+.board-moving-piece { position: relative; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; pointer-events: none; z-index: 3; }
+.board-game :is(.chess-square, .damas-square):has(.board-moving-piece) { z-index: 1; }
+.board-game :is(.chess-square, .damas-square).selected { z-index: 4; }
+.board-chess-piece { width: 89%; height: 89%; overflow: visible; filter: drop-shadow(0 3px 2px #001b2855); transition: translate .18s, filter .18s; }
+.board-chess-piece .piece-shadow { fill: #00170f33; }
+.board-chess-piece.ivory .piece-body { fill: #f8edcf; stroke: #968160; }
+.board-chess-piece.obsidian .piece-body { fill: #233931; stroke: #899c7a; }
+.board-chess-piece .piece-highlight { fill: none; stroke: #fff9; }
+.board-game .selected .board-chess-piece { translate: 0 -5%; filter: drop-shadow(0 7px 3px #001b2877); }
+.board-game :is(.chess-move-dot, .damas-move-dot, .damas-capture-dot) { position: absolute; width: 23%; height: 23%; border-radius: 50%; background: #e4c77e; box-shadow: 0 0 0 5px #e4c77e22, 0 2px 6px #152e3055; pointer-events: none; animation: board-marker 1.8s ease-in-out infinite; z-index: 5; }
+.board-game .damas-capture-dot { background: #ffad88; box-shadow: 0 0 0 6px #ffad8833; }
+.board-game .chess-capture-ring { position: absolute; inset: 5%; border: 3px solid #ffb293; border-radius: 50%; pointer-events: none; z-index: 5; }
+.board-game .damas-piece { position: relative; width: 74%; height: 74%; border-radius: 50%; display: grid; place-items: center; box-sizing: border-box; transition: translate .2s; }
+.board-game .damas-piece.piece-white { background: radial-gradient(circle at 35% 22%, #fffaf0, #e9d9b2 70%, #b69a66); border: 2px solid #e1c996; box-shadow: 0 4px 0 #ab8b56, 0 8px 8px #001c2277, inset 0 2px 2px #fff; }
+.board-game .damas-piece.piece-black { background: radial-gradient(circle at 35% 22%, #4c6556, #1b3028 70%, #102019); border: 2px solid #64806b; box-shadow: 0 4px 0 #0c2118, 0 8px 8px #001c2277, inset 0 2px 2px #98b49a66; }
+.board-game .damas-piece-ring { position: absolute; inset: 14%; border-radius: 50%; border: 2px solid #9f824344; box-shadow: inset 0 1px 2px #001c2244, 0 1px 0 #fff5; }
+.board-game .piece-black .damas-piece-ring { border-color: #b6c49d44; }
+.board-game .selected .damas-piece { translate: 0 -9%; }
+.board-game .damas-crown { color: #d0a04c; font-size: clamp(20px, 3.8vw, 42px); line-height: 1; text-shadow: 0 1px 0 #fff9, 0 2px 2px #50371d77; z-index: 1; }
+.board-seat { display: flex; gap: 10px; align-items: center; padding: 10px 12px; border: 1px solid #ffffff1f; border-radius: 12px; color: #f4eddc; background: #052c2380; transition: border-color .25s, box-shadow .25s; }
+.board-seat.is-active { border-color: #d6d591aa; box-shadow: 0 0 18px #d3f36b13; }
+.board-seat-avatar { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 10px; font-size: 28px; flex-shrink: 0; }
+.board-seat-avatar.ivory { background: #eee3c7; color: #355543; }
+.board-seat-avatar.obsidian { background: #1b352b; color: #e4d5af; border: 1px solid #ffffff26; }
+.board-seat strong { display: block; font-size: .82rem; font-weight: 600; }
+.board-seat small { display: block; margin-top: 3px; font-size: .69rem; color: #bed0bd; }
+.board-seat-status { display: flex; align-items: center; gap: 7px; margin-left: auto; font: 500 .65rem var(--mono); color: #b9cbbc; }
+.board-seat-status i { width: 6px; height: 6px; border-radius: 50%; background: #7b9a85; }
+.is-active .board-seat-status { color: #e3ebae; }
+.is-active .board-seat-status i { background: #d3f36b; box-shadow: 0 0 9px #d3f36b88; }
+.board-table-footer { display: flex; justify-content: space-between; gap: 10px; margin-top: 15px; font: 500 .66rem var(--mono); color: #c6d6bd; line-height: 1.6; }
+.board-table-footer > :last-child { white-space: nowrap; color: #ead29e; }
+.board-game :is(.chess-info-panel, .damas-info-panel) { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.board-game :is(.chess-status-card, .damas-status-card, .chess-history-card) { padding: 20px; background: linear-gradient(145deg, #fffef9, #f4f3e9); border: 1px solid var(--line); border-radius: 16px; box-shadow: 0 5px 18px #163a3008; }
+.board-game .panel-heading { display: flex; justify-content: space-between; color: #657263; font: 600 .68rem var(--mono); text-transform: uppercase; letter-spacing: .1em; }
+.board-game .turn-indicator { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 14px; }
+.board-game .turn-pill { padding: 7px 13px; border-radius: 8px; font-size: .85rem; font-weight: 600; }
+.board-game .turn-pill.white { color: #4d493a; background: #eae2ce; }
+.board-game .turn-pill.black { background: #203d30; color: #f7edcf; }
+.board-game .role-badge { font: 500 .7rem var(--mono); color: var(--muted); }
+.board-game :is(.captured-box, .damas-score-row) { border-top: 1px solid var(--line); margin-top: 18px; padding-top: 12px; }
+.board-game .captured-row { display: flex; align-items: center; gap: 10px; min-height: 30px; }
+.board-game .captured-label { color: var(--muted); font-size: .7rem; min-width: 48px; }
+.board-game .captured-list { display: flex; flex-wrap: wrap; font-size: 1.3rem; }
+.board-game .history-list { display: flex; flex-direction: column; gap: 6px; max-height: 240px; overflow-y: auto; margin-top: 16px; scrollbar-width: thin; font: 500 .75rem var(--mono); color: #43544b; }
+.board-game .history-item { display: flex; justify-content: space-between; gap: 8px; padding: 9px 8px; border-radius: 6px; animation: board-history .25s ease-out; }
+.board-game .history-item:first-child { background: #e5ecd8; color: #244b38; }
+.board-game .history-item > :first-child { color: #7e8e78; }
+.board-history-count { color: #849376; }
+.board-game .chess-controls button { width: 100%; border-radius: 10px; }
+.board-game .damas-score-row { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; }
+.board-game .damas-score-badge { display: flex; align-items: center; gap: 7px; font-size: .76rem; }
+.board-game .damas-mini-piece { width: 16px; height: 16px; border-radius: 50%; border: 1px solid #b9a77d; box-shadow: 0 2px 0 #a08c65; background: #efe4c9; }
+.board-game .damas-mini-piece.black { background: #294735; box-shadow: 0 2px 0 #102e22; border-color: #638067; }
+.board-game .must-capture-banner { margin-top: 15px; padding: 10px; border: 1px solid #dfb66c; border-radius: 8px; background: #f5ead1; color: #82551f; font-size: .76rem; line-height: 1.6; }
+@keyframes board-marker { 50% { transform: scale(.82); opacity: .7; } }
+@keyframes board-danger { 50% { box-shadow: inset 0 0 18px #ffb389; } }
+@keyframes board-history { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+@media (hover: hover) { .board-game :is(.chess-square, .damas-square):hover { box-shadow: inset 0 0 0 2px #f1dda566; } }
+@media (min-width: 1200px) { .board-game :is(.chess-board-wrapper, .damas-board-wrapper) { padding: 24px 36px; } }
+@media (max-width: 960px) {
+  .board-game :is(.chess-layout, .damas-layout) { grid-template-columns: minmax(0, 1fr); }
+  .board-game :is(.chess-info-panel, .damas-info-panel) { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .board-game .chess-controls { grid-column: 1 / -1; }
+}
+@media (max-width: 520px) {
+  .board-game :is(.chess-board-wrapper, .damas-board-wrapper) { padding: 6px; border-width: 4px; border-radius: 12px; }
+  .board-game :is(.chess-board, .damas-board) { margin: 12px auto; border-width: 3px; }
+  .board-seat { padding: 8px; gap: 8px; }
+  .board-seat-status { font-size: .58rem; }
+  .board-table-footer { font-size: .58rem; }
+  .board-game :is(.chess-info-panel, .damas-info-panel) { grid-template-columns: minmax(0, 1fr); }
+  .board-game .damas-piece { border-width: 1px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .board-game *, .board-game *::before, .board-game *::after { animation: none !important; transition: none !important; }
+}
+.board-capture-burst { position: absolute; inset: 8%; border: 3px solid #ffe4a0; border-radius: 50%; pointer-events: none; animation: board-capture .55s .18s ease-out both; }
+@keyframes board-capture { from { transform: scale(.5); opacity: .95; box-shadow: 0 0 18px #ffe4a0; } to { transform: scale(1.5); opacity: 0; box-shadow: 0 0 0 12px #ffe4a000; } }
+@media (prefers-reduced-motion: reduce) { .board-capture-burst { display: none; } }
+/* The impact follows the 520ms travel; promotion follows the impact. */
+.board-game .board-capture-burst { z-index: 8; animation-delay: .46s; }
+.board-captured-ghost { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; z-index: 7; animation: board-captured .38s .44s ease-in forwards; }
+@keyframes board-captured {
+  0% { transform: scale(1); opacity: 1; filter: brightness(1); }
+  30% { transform: scale(1.12) rotate(-8deg); opacity: .9; filter: brightness(1.7); }
+  100% { transform: translateY(-22%) scale(.25) rotate(18deg); opacity: 0; filter: brightness(1.5); }
+}
+.board-promotion-swap { position: relative; display: block; width: 100%; height: 100%; }
+.board-promotion-before, .board-promotion-after { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
+.board-promotion-before { animation: board-pawn-out .3s .54s both; }
+.board-promotion-after { animation: board-promoted-in .5s .7s both; }
+.board-promotion-halo { position: absolute; inset: -20%; display: grid; place-items: center; pointer-events: none; font-size: clamp(36px, 6vw, 78px); color: #ffdf88; animation: board-crowning 1s .52s both; }
+.board-promotion-label { position: absolute; bottom: 80%; left: 50%; z-index: 9; padding: 5px 10px; border-radius: 20px; background: #ffe3a3; color: #493119; box-shadow: 0 3px 12px #152e3044; font-size: .7rem; white-space: nowrap; pointer-events: none; animation: board-promotion-caption 1.8s .65s both; }
+@keyframes board-pawn-out { to { transform: scale(.5); opacity: 0; } }
+@keyframes board-promoted-in { from { transform: scale(.5); opacity: 0; filter: brightness(2); } 70% { transform: scale(1.12); opacity: 1; } to { transform: scale(1); opacity: 1; filter: brightness(1); } }
+@keyframes board-crowning { from { transform: scale(.3) rotate(-45deg); opacity: 0; } 35% { opacity: .85; } to { transform: scale(1.5) rotate(45deg); opacity: 0; } }
+@keyframes board-promotion-caption { 0% { transform: translate(-50%, 10px); opacity: 0; } 15%, 75% { transform: translate(-50%, 0); opacity: 1; } 100% { transform: translate(-50%, -15px); opacity: 0; } }
+.board-promotion-options { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-top: 20px; }
+.board-promotion-options button { display: flex; flex-direction: column; align-items: center; padding: 10px 4px; border: 1px solid #c8b47d; border-radius: 12px; background: #f2ead5; cursor: pointer; color: #304b36; }
+.board-promotion-options button:hover { background: #e3d4ac; }
+.board-promotion-options svg { width: 100%; max-width: 76px; aspect-ratio: 1; }
+.board-promotion-options span { font-size: .75rem; }
+@media (prefers-reduced-motion: reduce) {
+  .board-captured-ghost, .board-promotion-before, .board-promotion-halo, .board-promotion-label { display: none; }
+  .board-promotion-after { opacity: 1; }
+}

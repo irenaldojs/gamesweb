@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import GameDialog, { OpponentLeftDialog, GameEndDialog } from '../../components/GameDialog.jsx';
 import './styles.css';
+import { SquareEffects, MovingPiece, BoardSeat, BoardFooter } from '../board/BoardPresentation.jsx';
 
 // Cria o tabuleiro 8x8 inicial de Damas
 function createInitialBoard() {
@@ -216,14 +217,14 @@ export default function DamasGame({ sdk, playerId, connected, active, onExitToHu
       setRole('host');
       sdk.role = 'host';
       setMultiplayerReady(false);
-      setStatus(`Sala ${event.detail.roomId} criada. Aguardando outro jogador...`);
+      setStatus('Preparando a partida online...');
     };
 
     const onRoomJoined = (event) => {
       setRole('guest');
       sdk.role = 'guest';
       setMultiplayerReady(true);
-      setStatus(`Você entrou na sala ${event.detail.roomId}.`);
+      setStatus('Adversário encontrado.');
     };
 
     const onGameStart = () => {
@@ -312,7 +313,7 @@ export default function DamasGame({ sdk, playerId, connected, active, onExitToHu
 
     const timer = setTimeout(() => {
       runAIMove();
-    }, 450);
+    }, 850);
 
     return () => clearTimeout(timer);
   }, [phase, role, turn, chainPiece]);
@@ -468,6 +469,8 @@ export default function DamasGame({ sdk, playerId, connected, active, onExitToHu
   function applyMove(fromR, fromC, toR, toC, capturedPos) {
     const nextBoard = cloneBoard(boardRef.current);
     let piece = nextBoard[fromR][fromC];
+    const originalPiece = piece;
+    const capturedPiece = capturedPos ? nextBoard[capturedPos[0]][capturedPos[1]] : null;
     nextBoard[fromR][fromC] = null;
 
     let newCapturedWhite = capturedWhite;
@@ -500,7 +503,7 @@ export default function DamasGame({ sdk, playerId, connected, active, onExitToHu
     const notation = `${symbol} ${fromNotation} → ${toNotation}${capturedPos ? ' ⚔' : ''}${promoted ? ' 👑' : ''}`;
     const newHistory = [notation, ...moveHistory];
 
-    const newLastMove = { from: [fromR, fromC], to: [toR, toC] };
+    const newLastMove = { from: [fromR, fromC], to: [toR, toC], capturedPiece, capturedAt: capturedPos, promoted, originalPiece };
 
     // Verifica se há captura em cadeia para a mesma peça (se acabou de capturar e não acabou de ser promovida)
     let nextChainPiece = null;
@@ -572,18 +575,12 @@ export default function DamasGame({ sdk, playerId, connected, active, onExitToHu
   const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
 
   return (
-    <div className="damas-view">
-      <div className="damas-heading">
-        <div>
-          <div className="section-kicker">Clássico / 003</div>
-          <h1 className="section-heading">Jogo de Damas</h1>
-        </div>
-      </div>
-
+    <div className="damas-view board-game">
       <div className="damas-layout">
         {/* Tabuleiro */}
         <div className="damas-board-wrapper">
-          <div className="damas-board">
+          <BoardSeat color={role === 'guest' ? 'w' : 'b'} turn={turn} role={role} phase={phase} />
+          <div className="damas-board" aria-label="Tabuleiro de Jogo de Damas">
             {board.map((row, r) =>
               row.map((piece, c) => {
                 const isPlayableSquare = (r + c) % 2 === 1;
@@ -595,11 +592,15 @@ export default function DamasGame({ sdk, playerId, connected, active, onExitToHu
                 );
 
                 return (
-                  <div
+                  <button
+                    type="button"
+                    aria-label={`${files[c]}${8 - r}${piece ? ', ' + (isDama(piece) ? 'dama' : 'peça') + ' ' + (getPieceOwner(piece) === 'w' ? 'branca' : 'preta') : ', casa vazia'}`}
+                    aria-pressed={Boolean(isSelected)}
                     key={`${r}-${c}`}
                     className={`damas-square ${isPlayableSquare ? 'dark' : 'light'} ${isSelected ? 'selected' : ''} ${isLastMoveSquare ? 'last-move' : ''}`}
                     onClick={() => handleSquareClick(r, c)}
                   >
+                    <SquareEffects lastMove={lastMove} row={r} col={c} revision={moveHistory.length} game="damas" />
                     {/* Coordenadas */}
                     {c === 0 && <span className="coord-rank">{8 - r}</span>}
                     {r === 7 && <span className="coord-file">{files[c]}</span>}
@@ -610,16 +611,20 @@ export default function DamasGame({ sdk, playerId, connected, active, onExitToHu
 
                     {/* Peça de Dama */}
                     {piece && (
+                      <MovingPiece lastMove={lastMove} row={r} col={c} revision={moveHistory.length} promotionFrom={lastMove?.promoted ? <span className={`damas-piece ${getPieceOwner(piece) === 'w' ? 'piece-white' : 'piece-black'}`}><span className="damas-piece-ring" /></span> : null}>
                       <div className={`damas-piece ${getPieceOwner(piece) === 'w' ? 'piece-white' : 'piece-black'}`}>
                         <div className="damas-piece-ring" />
-                        {isDama(piece) && <span className="damas-crown">👑</span>}
+                        {isDama(piece) && <span className="damas-crown">♛</span>}
                       </div>
+                      </MovingPiece>
                     )}
-                  </div>
+                  </button>
                 );
               })
             )}
           </div>
+          <BoardSeat color={role === 'guest' ? 'b' : 'w'} turn={turn} role={role} phase={phase} />
+          <BoardFooter message={phase !== 'playing' ? 'Sua próxima partida começa aqui' : chainPiece ? 'Continue a sequência de capturas' : hasMandatoryCaptures ? 'Há uma captura obrigatória' : selectedSquare ? 'Escolha uma casa destacada' : 'Selecione uma peça para jogar'} moves={moveHistory.length} />
         </div>
 
         {/* Painel lateral de status */}
@@ -666,11 +671,11 @@ export default function DamasGame({ sdk, playerId, connected, active, onExitToHu
 
           {/* Histórico de Lances */}
           <div className="chess-history-card">
-            <div className="panel-heading">Histórico de Lances</div>
+            <div className="panel-heading">Histórico de lances <span className="board-history-count">{moveHistory.length}</span></div>
             <div className="history-list">
               {moveHistory.length === 0 && <span style={{ color: 'var(--muted)', fontSize: '0.78rem' }}>Nenhum lance feito ainda.</span>}
               {moveHistory.map((mv, idx) => (
-                <div key={idx} className="history-item">
+                <div key={moveHistory.length - idx} className="history-item">
                   <span>#{moveHistory.length - idx}</span>
                   <span>{mv}</span>
                 </div>
@@ -707,7 +712,7 @@ export default function DamasGame({ sdk, playerId, connected, active, onExitToHu
             sdk.role = null;
             setRole(null);
             setPhase('lobby');
-            setStatus('Crie ou entre em uma sala para jogar novamente.');
+            setStatus('Use a fila rápida ou convide um amigo na biblioteca para jogar online.');
           }}
           onExitToHub={onExitToHub}
           status={status}
@@ -724,7 +729,7 @@ export default function DamasGame({ sdk, playerId, connected, active, onExitToHu
             sdk.role = null;
             setRole(null);
             setPhase('lobby');
-            setStatus('Crie ou entre em uma sala para jogar novamente.');
+            setStatus('Use a fila rápida ou convide um amigo na biblioteca para jogar online.');
           }}
           onExitToHub={onExitToHub}
         />
@@ -736,7 +741,7 @@ export default function DamasGame({ sdk, playerId, connected, active, onExitToHu
           title="Jogo de Damas"
           message={
             role === 'host' || role === 'guest'
-              ? 'A partida começa quando ambos estiverem na sala.'
+              ? 'Preparando a partida com seu adversário.'
               : 'Escolha seu modo de jogo para entrar na mesa de Damas.'
           }
           status={status}
@@ -749,13 +754,6 @@ export default function DamasGame({ sdk, playerId, connected, active, onExitToHu
               label: 'Jogar Solo (vs IA)',
               onClick: startSolo,
             }
-          }
-          secondaryAction={
-            role !== 'host' && role !== 'guest' ? {
-              label: 'Criar sala',
-              onClick: () => sdk.createRoom('damas'),
-              disabled: !connected,
-            } : null
           }
         />
       )}

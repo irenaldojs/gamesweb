@@ -120,7 +120,6 @@ export default function DominoGame({ sdk, playerId, connected, active, onExitToH
   const [shakeId, setShakeId] = useState(null);
   const [curtain, setCurtain] = useState(false);
   const [status, setStatus] = useState('');
-  const [roomCode, setRoomCode] = useState('');
   const [opponentLeftInfo, setOpponentLeftInfo] = useState(null);
   const [boardW, setBoardW] = useState(0);
 
@@ -193,7 +192,6 @@ export default function DominoGame({ sdk, playerId, connected, active, onExitToH
     if (sdk.roomId) sdk.leaveRoom();
     sdk.role = null;
     setRole(null);
-    setRoomCode('');
     modeRef.current = null;
     gameRef.current = null;
     setGame(null);
@@ -210,15 +208,13 @@ export default function DominoGame({ sdk, playerId, connected, active, onExitToH
     const onRoomCreated = (e) => {
       setRole('host');
       sdk.role = 'host';
-      setRoomCode(e.detail.roomId);
-      setStatus(`Sala ${e.detail.roomId} criada. Aguardando outro jogador...`);
+      setStatus('Preparando a partida online...');
     };
 
     const onRoomJoined = (e) => {
       setRole('guest');
       sdk.role = 'guest';
-      setRoomCode(e.detail.roomId);
-      setStatus(`Você entrou na sala ${e.detail.roomId}.`);
+      setStatus('Adversário encontrado.');
     };
 
     const onGameStart = () => {
@@ -485,21 +481,14 @@ export default function DominoGame({ sdk, playerId, connected, active, onExitToH
 
   return (
     <div className="dom-view">
-      <div className="dom-heading">
-        <div>
-          <div className="section-kicker">Clássico / 004</div>
-          <h1 className="section-heading">Dominó</h1>
-        </div>
+      <div className="dom-layout">
+        <div className="dom-table-wrap">
+          <div className="dom-table">
         {game && (
           <div className="dom-round-chip">
             Rodada {game.round} · {game.target === 1 ? 'rodada única' : `meta ${game.target} pts`}
           </div>
         )}
-      </div>
-
-      <div className="dom-layout">
-        <div className="dom-table-wrap">
-          <div className="dom-table">
             {/* Oponentes */}
             <div className="dom-opponents">
               {game ? opponents.map(renderSeat) : (
@@ -735,7 +724,7 @@ export default function DominoGame({ sdk, playerId, connected, active, onExitToH
           reason={opponentLeftInfo?.reason}
           onPlayAgain={() => {
             setOpponentLeftInfo(null);
-            backToLobby('Crie ou entre em uma sala para jogar novamente.');
+            backToLobby('Use a fila rápida ou convide um amigo na biblioteca para jogar online.');
           }}
           onExitToHub={onExitToHub}
           status={status}
@@ -748,7 +737,7 @@ export default function DominoGame({ sdk, playerId, connected, active, onExitToH
           title="Fim de Jogo"
           message={`${game.players[result.matchWinner].name} venceu a partida com ${game.scores[result.matchWinner]} pontos!`}
           status={status}
-          onPlayAgain={() => backToLobby(mode === 'online' ? 'Crie ou entre em uma sala para jogar novamente.' : '')}
+          onPlayAgain={() => backToLobby(mode === 'online' ? 'Use a fila rápida ou convide um amigo na biblioteca para jogar online.' : '')}
           onExitToHub={onExitToHub}
         >
           <div className="dom-final">
@@ -773,7 +762,7 @@ export default function DominoGame({ sdk, playerId, connected, active, onExitToH
           title="Dominó"
           message={
             lobbyWaiting
-              ? 'A partida começa assim que o segundo jogador entrar na sala.'
+              ? 'Preparando a partida com seu adversário.'
               : 'Monte a mesa: jogue contra a IA, com amigos no mesmo aparelho ou online.'
           }
           status={status}
@@ -832,7 +821,7 @@ export default function DominoGame({ sdk, playerId, connected, active, onExitToH
                 className="secondary-button"
                 onClick={() => backToLobby('')}
               >
-                {role === 'host' ? `Cancelar sala ${roomCode}` : 'Sair da sala'}
+                Cancelar partida
               </button>
             ) : (
               <>
@@ -842,18 +831,7 @@ export default function DominoGame({ sdk, playerId, connected, active, onExitToH
                 <button type="button" className="secondary-button" onClick={() => startMatch('local')}>
                   Mesa local ({seats})
                 </button>
-                <button
-                  type="button"
-                  className="secondary-button"
-                  onClick={() => {
-                    setMode('online');
-                    modeRef.current = 'online';
-                    sdk.createRoom('domino');
-                  }}
-                  disabled={!connected}
-                >
-                  Criar sala online
-                </button>
+
               </>
             )}
           </div>

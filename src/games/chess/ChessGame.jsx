@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import GameDialog, { OpponentLeftDialog, GameEndDialog } from '../../components/GameDialog.jsx';
 import './styles.css';
+import { SquareEffects, MovingPiece, ChessPiece, BoardSeat, BoardFooter } from '../board/BoardPresentation.jsx';
 
 // Peças Unicode
 const PIECE_ICONS = {
@@ -264,6 +265,7 @@ export default function ChessGame({ sdk, playerId, connected, active, onExitToHu
   const [moveHistory, setMoveHistory] = useState([]);
   const [phase, setPhase] = useState('lobby'); // 'lobby', 'playing', 'gameover'
   const [gameResult, setGameResult] = useState('');
+  const [pendingPromotion, setPendingPromotion] = useState(null);
   const [role, setRole] = useState(sdk.role);
   const [status, setStatus] = useState('');
   const [multiplayerReady, setMultiplayerReady] = useState(false);
@@ -290,14 +292,14 @@ export default function ChessGame({ sdk, playerId, connected, active, onExitToHu
       setRole('host');
       sdk.role = 'host';
       setMultiplayerReady(false);
-      setStatus(`Sala ${event.detail.roomId} criada. Aguardando outro jogador...`);
+      setStatus('Preparando a partida online...');
     };
 
     const onRoomJoined = (event) => {
       setRole('guest');
       sdk.role = 'guest';
       setMultiplayerReady(true);
-      setStatus(`Você entrou na sala ${event.detail.roomId}.`);
+      setStatus('Adversário encontrado.');
     };
 
     const onGameStart = () => {
@@ -396,12 +398,13 @@ export default function ChessGame({ sdk, playerId, connected, active, onExitToHu
           endGame('Empate por Afogamento (Stalemate)!', null);
         }
       }
-    }, 450);
+    }, 850);
 
     return () => clearTimeout(timer);
   }, [phase, role, turn]);
 
   function resetGame() {
+    setPendingPromotion(null);
     setBoard(createInitialBoard());
     setTurn('w');
     setSelectedSquare(null);
@@ -452,7 +455,7 @@ export default function ChessGame({ sdk, playerId, connected, active, onExitToHu
   }
 
   function handleSquareClick(r, c) {
-    if (phase !== 'playing') return;
+    if (phase !== 'playing' || pendingPromotion) return;
 
     const piece = board[r][c];
     const pieceColor = getPieceColor(piece);
@@ -480,9 +483,15 @@ export default function ChessGame({ sdk, playerId, connected, active, onExitToHu
     }
   }
 
-  function executeMove(fromR, fromC, toR, toC) {
+  function executeMove(fromR, fromC, toR, toC, promotionType) {
     const currentBoard = cloneBoard(boardRef.current);
     const piece = currentBoard[fromR][fromC];
+    if (!piece) return;
+    const promoted = getPieceType(piece) === 'P' && (toR === 0 || toR === 7);
+    if (promoted && canMoveColor(getPieceColor(piece)) && !promotionType) {
+      setPendingPromotion({ fromR, fromC, toR, toC, color: getPieceColor(piece) });
+      return;
+    }
     const captured = currentBoard[toR][toC];
     const color = getPieceColor(piece);
     const nextTurn = color === 'w' ? 'b' : 'w';
@@ -491,9 +500,7 @@ export default function ChessGame({ sdk, playerId, connected, active, onExitToHu
     currentBoard[toR][toC] = piece;
     currentBoard[fromR][fromC] = null;
 
-    // Promoção de Peão para Dama
-    if (piece === 'wP' && toR === 0) currentBoard[toR][toC] = 'wQ';
-    if (piece === 'bP' && toR === 7) currentBoard[toR][toC] = 'bQ';
+    if (promoted) currentBoard[toR][toC] = color + (promotionType || 'Q');
 
     // Atualiza capturas
     const newCapturedWhite = [...capturedWhite];
@@ -510,10 +517,10 @@ export default function ChessGame({ sdk, playerId, connected, active, onExitToHu
     const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
     const fromNotation = `${files[fromC]}${8 - fromR}`;
     const toNotation = `${files[toC]}${8 - toR}`;
-    const notation = `${PIECE_ICONS[piece]} ${fromNotation} → ${toNotation}${captured ? ' ⚔' : ''}`;
+    const notation = `${PIECE_ICONS[piece]} ${fromNotation} → ${toNotation}${captured ? ' ⚔' : ''}${promoted ? ' = ' + PIECE_NAMES[promotionType || 'Q'] : ''}`;
     const newHistory = [notation, ...moveHistory];
 
-    const newLastMove = { from: [fromR, fromC], to: [toR, toC] };
+    const newLastMove = { from: [fromR, fromC], to: [toR, toC], capturedPiece: captured, capturedAt: captured ? [toR, toC] : null, promoted, originalPiece: piece };
 
     // Checa fim de jogo para o próximo jogador
     const enemyHasMoves = hasAnyLegalMove(currentBoard, nextTurn);
@@ -566,18 +573,12 @@ export default function ChessGame({ sdk, playerId, connected, active, onExitToHu
   const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
 
   return (
-    <div className="chess-view">
-      <div className="chess-heading">
-        <div>
-          <div className="section-kicker">Estratégia / 002</div>
-          <h1 className="section-heading">Xadrez Clássico</h1>
-        </div>
-      </div>
-
+    <div className="chess-view board-game">
       <div className="chess-layout">
         {/* Tabuleiro */}
         <div className="chess-board-wrapper">
-          <div className="chess-board">
+          <BoardSeat color={role === 'guest' ? 'w' : 'b'} turn={turn} role={role} phase={phase} />
+          <div className="chess-board" aria-label="Tabuleiro de Xadrez Clássico">
             {board.map((row, r) =>
               row.map((piece, c) => {
                 const isLight = (r + c) % 2 === 0;
@@ -592,11 +593,15 @@ export default function ChessGame({ sdk, playerId, connected, active, onExitToHu
                   (piece === 'bK' && isBlackInCheck);
 
                 return (
-                  <div
+                  <button
+                    type="button"
+                    aria-label={`${files[c]}${8 - r}${piece ? ', ' + PIECE_NAMES[getPieceType(piece)] + ' ' + (getPieceColor(piece) === 'w' ? 'branca' : 'preta') : ', casa vazia'}`}
+                    aria-pressed={Boolean(isSelected)}
                     key={`${r}-${c}`}
                     className={`chess-square ${isLight ? 'light' : 'dark'} ${isSelected ? 'selected' : ''} ${isLastMoveSquare ? 'last-move' : ''} ${isKingCheckSquare ? 'in-check' : ''}`}
                     onClick={() => handleSquareClick(r, c)}
                   >
+                    <SquareEffects lastMove={lastMove} row={r} col={c} revision={moveHistory.length} game="chess" />
                     {/* Coordenadas */}
                     {c === 0 && <span className="coord-rank">{8 - r}</span>}
                     {r === 7 && <span className="coord-file">{files[c]}</span>}
@@ -607,15 +612,17 @@ export default function ChessGame({ sdk, playerId, connected, active, onExitToHu
 
                     {/* Peça */}
                     {piece && (
-                      <span className={`chess-piece ${getPieceColor(piece) === 'w' ? 'piece-white' : 'piece-black'}`}>
-                        {PIECE_ICONS[piece]}
-                      </span>
+                      <MovingPiece lastMove={lastMove} row={r} col={c} revision={moveHistory.length} promotionFrom={lastMove?.promoted ? <ChessPiece piece={lastMove.originalPiece} /> : null}>
+                        <ChessPiece piece={piece} />
+                      </MovingPiece>
                     )}
-                  </div>
+                  </button>
                 );
               })
             )}
           </div>
+          <BoardSeat color={role === 'guest' ? 'b' : 'w'} turn={turn} role={role} phase={phase} />
+          <BoardFooter message={phase !== 'playing' ? 'Sua próxima partida começa aqui' : selectedSquare ? 'Escolha uma casa destacada' : 'Selecione uma peça para jogar'} moves={moveHistory.length} />
         </div>
 
         {/* Painel lateral de status e informações */}
@@ -664,11 +671,11 @@ export default function ChessGame({ sdk, playerId, connected, active, onExitToHu
 
           {/* Histórico de Lances */}
           <div className="chess-history-card">
-            <div className="panel-heading">Histórico de Lances</div>
+            <div className="panel-heading">Histórico de lances <span className="board-history-count">{moveHistory.length}</span></div>
             <div className="history-list">
               {moveHistory.length === 0 && <span style={{ color: 'var(--muted)', fontSize: '0.78rem' }}>Nenhum lance feito ainda.</span>}
               {moveHistory.map((mv, idx) => (
-                <div key={idx} className="history-item">
+                <div key={moveHistory.length - idx} className="history-item">
                   <span>#{moveHistory.length - idx}</span>
                   <span>{mv}</span>
                 </div>
@@ -695,6 +702,17 @@ export default function ChessGame({ sdk, playerId, connected, active, onExitToHu
       </div>
 
       {/* Modais Padrão do Hub: Oponente Saiu / Fim de Jogo / Lobby */}
+      {pendingPromotion && phase === 'playing' && (
+        <GameDialog title="Promover peão" message="Escolha a peça que ocupará a casa de destino.">
+          <div className="board-promotion-options">
+            {['Q', 'R', 'B', 'N'].map((type, index) => <button key={type} type="button" autoFocus={index === 0} onClick={() => {
+              const { fromR, fromC, toR, toC } = pendingPromotion;
+              setPendingPromotion(null);
+              executeMove(fromR, fromC, toR, toC, type);
+            }}><ChessPiece piece={pendingPromotion.color + type} /><span>{PIECE_NAMES[type]}</span></button>)}
+          </div>
+        </GameDialog>
+      )}
       {phase === 'opponent_left' && (
         <OpponentLeftDialog
           opponentName={opponentLeftInfo?.opponentName}
@@ -705,7 +723,7 @@ export default function ChessGame({ sdk, playerId, connected, active, onExitToHu
             sdk.role = null;
             setRole(null);
             setPhase('lobby');
-            setStatus('Crie ou entre em uma sala para jogar novamente.');
+            setStatus('Use a fila rápida ou convide um amigo na biblioteca para jogar online.');
           }}
           onExitToHub={onExitToHub}
           status={status}
@@ -722,7 +740,7 @@ export default function ChessGame({ sdk, playerId, connected, active, onExitToHu
             sdk.role = null;
             setRole(null);
             setPhase('lobby');
-            setStatus('Crie ou entre em uma sala para jogar novamente.');
+            setStatus('Use a fila rápida ou convide um amigo na biblioteca para jogar online.');
           }}
           onExitToHub={onExitToHub}
         />
@@ -734,7 +752,7 @@ export default function ChessGame({ sdk, playerId, connected, active, onExitToHu
           title="Xadrez Clássico"
           message={
             role === 'host' || role === 'guest'
-              ? 'A partida começa quando ambos estiverem na sala.'
+              ? 'Preparando a partida com seu adversário.'
               : 'Escolha seu modo de jogo para entrar no tabuleiro.'
           }
           status={status}
@@ -747,13 +765,6 @@ export default function ChessGame({ sdk, playerId, connected, active, onExitToHu
               label: 'Jogar Solo (vs IA)',
               onClick: startSolo,
             }
-          }
-          secondaryAction={
-            role !== 'host' && role !== 'guest' ? {
-              label: 'Criar sala',
-              onClick: () => sdk.createRoom('chess'),
-              disabled: !connected,
-            } : null
           }
         />
       )}

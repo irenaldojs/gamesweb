@@ -79,14 +79,6 @@
 /* ================================ Estrutura ================================ */
 .dom-view { min-width: 0; width: 100%; }
 
-.dom-heading {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 20px;
-}
-.dom-heading .section-heading { margin-top: 5px; }
 .dom-round-chip {
   padding: 6px 12px;
   border: 1px solid var(--line);
@@ -601,5 +593,4 @@
   .dom-dock-body { flex-direction: column; align-items: stretch; }
   .dom-stock { flex-direction: row; align-self: flex-end; }
   .dom-stock-stack { width: 38px; }
-  .dom-heading { align-items: center; }
 }

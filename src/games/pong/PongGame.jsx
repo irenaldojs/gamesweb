@@ -63,12 +63,12 @@ export default function PongGame({ sdk, playerId, connected, active, onExitToHub
     const onRoomCreated = (event) => {
       setRole('host');
       setMultiplayerReady(false);
-      setStatus(`Sala ${event.detail.roomId} criada. Aguardando outro jogador...`);
+      setStatus('Preparando a partida online...');
     };
     const onRoomJoined = (event) => {
       setRole('guest');
       setMultiplayerReady(true);
-      setStatus(`Você entrou na sala ${event.detail.roomId}.`);
+      setStatus('Adversário encontrado.');
     };
     const onGameStart = () => {
       setMultiplayerReady(true);
@@ -355,12 +355,6 @@ export default function PongGame({ sdk, playerId, connected, active, onExitToHub
 
   return (
     <div className="pong-view">
-      <div className="pong-heading">
-        <div>
-          <h5 className="section-heading">Pong</h5>
-        </div>
-      </div>
-
       <div className="arena">
         <canvas
           className={`pong-canvas ${phase !== 'ready' ? 'visible' : ''}`}
@@ -382,7 +376,7 @@ export default function PongGame({ sdk, playerId, connected, active, onExitToHub
               sdk.role = null;
               setRole(null);
               setPhase('ready');
-              setStatus('Crie uma nova sala para outra partida.');
+              setStatus('Use a fila rápida ou convide um amigo na biblioteca para jogar online.');
             }}
             onExitToHub={onExitToHub}
             status={status}
@@ -398,7 +392,7 @@ export default function PongGame({ sdk, playerId, connected, active, onExitToHub
               sdk.role = null;
               setRole(null);
               setPhase('ready');
-              setStatus('Crie uma nova sala para outra partida.');
+              setStatus('Use a fila rápida ou convide um amigo na biblioteca para jogar online.');
             }}
             onExitToHub={onExitToHub}
             status={status}
@@ -438,13 +432,6 @@ export default function PongGame({ sdk, playerId, connected, active, onExitToHub
                 label: 'Iniciar',
                 onClick: startSolo,
               }
-            }
-            secondaryAction={
-              role !== 'host' && role !== 'guest' ? {
-                label: 'Criar sala',
-                onClick: () => sdk.createRoom('pong'),
-                disabled: !connected,
-              } : null
             }
           />
         )}

@@ -1,3 +1,4 @@
+import { routeChat } from "./chatRouter.mjs";
 import { serve, ServerWebSocket } from "bun";
 import {
   getOrCreateUser,
@@ -138,23 +139,10 @@ const server = serve<ClientData>({
             break;
           }
 
-          // Chat Global
-          case "CHAT_GLOBAL_MSG": {
-            if (!ws.data.playerId) return;
-            const broadcastMsg = JSON.stringify({
-              type: "CHAT_GLOBAL_MSG",
-              payload: {
-                senderId: ws.data.playerId,
-                senderName: ws.data.username,
-                message: payload.message,
-                timestamp: Date.now()
-              }
-            });
-            for (const client of clients.values()) {
-              if (client.readyState === 1) {
-                client.send(broadcastMsg);
-              }
-            }
+          case "CHAT_GLOBAL_MSG":
+          case "CHAT_SEND": {
+            routeChat({ ws, payload: type === 'CHAT_GLOBAL_MSG' ? { ...payload, channel: 'global' } : payload,
+              clients, rooms, friendIds: ws.data.playerId ? getUserFriends(ws.data.playerId).map((friend: any) => friend.id) : [] });
             break;
           }
 
@@ -301,30 +289,6 @@ const server = serve<ClientData>({
             break;
           }
 
-          // Criação e Entrada Manual em Sala (legado/fallback)
-          case "ROOM_CREATE": {
-            const roomId = `RM-${Math.floor(1000 + Math.random() * 9000)}`;
-            rooms.set(roomId, { id: roomId, gameId: payload.gameId, host: ws, status: "waiting" });
-            ws.data.roomId = roomId;
-            ws.send(JSON.stringify({ type: "ROOM_CREATED", payload: { roomId, role: "host", gameId: payload.gameId } }));
-            break;
-          }
-
-          case "ROOM_JOIN": {
-            const room = rooms.get(payload.roomId);
-            if (room && room.status === "waiting") {
-              room.guest = ws;
-              room.status = "playing";
-              ws.data.roomId = room.id;
-              ws.send(JSON.stringify({ type: "ROOM_JOINED", payload: { roomId: room.id, role: "guest", gameId: room.gameId } }));
-
-              const startPayload = JSON.stringify({ type: "GAME_START", payload: { roomId: room.id, gameId: room.gameId } });
-              room.host.send(startPayload);
-              room.guest.send(startPayload);
-            }
-            break;
-          }
-
           // Saída de sala
           case "ROOM_LEAVE": {
             const roomId = ws.data.roomId;
@@ -383,6 +347,9 @@ const server = serve<ClientData>({
                 }
               }
 
+              for (const member of [room.host, room.guest]) {
+                member?.send(JSON.stringify({ type: 'ROOM_CLOSED', payload: { roomId: room.id } }));
+              }
               rooms.delete(room.id);
             }
             break;

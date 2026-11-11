@@ -129,8 +129,6 @@ Todas as mensagens seguem o formato `{ type: string, payload: object }`.
 |---|---|---|
 | `AUTH` | `{ playerId, username }` | Autenticação do jogador |
 | `CHAT_GLOBAL_MSG` | `{ message }` | Mensagem no chat global |
-| `ROOM_CREATE` | `{ gameId }` | Criar uma sala para um jogo |
-| `ROOM_JOIN` | `{ roomId }` | Entrar em uma sala existente |
 | `ROOM_LEAVE` | `{ roomId }` | Sair voluntariamente da sala |
 | `GAME_SYNC_INPUT` | `{ ...data }` | Input de jogo (relay para oponente) |
 | `GAME_MATCH_END` | `{ winnerId }` | Reportar fim de partida |
@@ -165,8 +163,6 @@ O `HubGameSDK` (em `src/sdk/HubSDK.js`) é a abstração que todo jogo usa para 
 |---|---|
 | `connect(playerId, username)` | Conecta ao servidor e autentica. Retorna `Promise<Profile>` |
 | `disconnect()` | Fecha a conexão WebSocket |
-| `createRoom(gameId)` | Cria uma sala para o jogo especificado |
-| `joinRoom(roomId)` | Entra em uma sala existente pelo código |
 | `leaveRoom()` | Notifica o servidor e sai da sala atual |
 | `sendChatMessage(message)` | Envia mensagem no chat global |
 | `sendGameInput(data)` | Envia input de jogo para o oponente (ignorado no modo `solo`) |
@@ -222,7 +218,6 @@ export default function SnakeGame({ sdk, playerId, connected, active }) {
 - **Receber estado**: Escutar `GAME_SYNC_RELAY` via `sdk.addEventListener`
 - **Fim de partida**: Chamar `sdk.reportMatchEnd(winnerId)` quando acabar
 - **Modo solo**: Setar `sdk.role = 'solo'` e implementar IA local
-- **Criar sala**: Chamar `sdk.createRoom('nome-do-jogo')`
 
 ### 4. Registrar no App.jsx
 
@@ -236,9 +231,9 @@ import SnakeGame from './games/snake/SnakeGame.jsx';
 ### 5. Ciclo de vida típico de um jogo multiplayer
 
 ```
-1. Jogador A cria sala          → sdk.createRoom('pong')
-2. Servidor notifica            → evento ROOM_CREATED { roomId }
-3. Jogador B entra na sala      → sdk.joinRoom('RM-XXXX')
+1. Jogadores entram na fila     → sdk.joinQueue('pong')
+2. Ou enviam/aceitam um convite → sdk.sendInvite(...) / sdk.acceptInvite(...)
+3. Servidor define host e guest → eventos ROOM_CREATED / ROOM_JOINED
 4. Servidor notifica ambos      → evento GAME_START
 5. Durante o jogo:
    - Host calcula física e envia → sdk.sendGameInput({ ballX, ballY, ... })

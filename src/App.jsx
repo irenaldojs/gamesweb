@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { HubGameSDK } from './sdk/HubSDK.js';
 import { GAMES_CATALOG } from './games/gamesRegistry.jsx';
+import ProfileModal from './components/ProfileModal.jsx';
 import GoogleLoginModal from './components/GoogleLoginModal.jsx';
 import InviteToast from './components/InviteToast.jsx';
 import MatchmakingModal from './components/MatchmakingModal.jsx';
@@ -42,26 +43,35 @@ export default function App() {
   const [profile, setProfile] = useState(null);
   const [connectionError, setConnectionError] = useState('');
   const [activeGame, setActiveGame] = useState(null);
-  const [roomCode, setRoomCode] = useState('');
   const [messages, setMessages] = useState([]);
   const [chatMessage, setChatMessage] = useState('');
   const [isChatOverlayOpen, setIsChatOverlayOpen] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
+  const [unreadChats, setUnreadChats] = useState({});
+  const unreadCount = Object.values(unreadChats).reduce((sum, count) => sum + count, 0);
+  const [chatTarget, setChatTarget] = useState('global');
+  const chatTargetRef = useRef(chatTarget);
+  const [currentRoom, setCurrentRoom] = useState(null);
+
 
   // Abas e Dados da Comunidade (SQLite)
-  const [activeTab, setActiveTab] = useState('chat'); // 'chat' | 'friends' | 'ranking'
+  const [activeTab, setActiveTab] = useState('friends'); // 'friends' | 'ranking'
   const [friends, setFriends] = useState([]);
   const [ranks, setRanks] = useState([]);
   const [friendInput, setFriendInput] = useState('');
+  const conversationMessages = messages.filter(message => message.conversation === chatTarget);
+  const selectedFriend = friends.find(friend => `friend:${friend.id}` === chatTarget);
+  const chatTitle = chatTarget === 'global' ? 'Global do servidor' : chatTarget.startsWith('room:') ? 'Adversário da partida' : selectedFriend?.name || 'Amigo';
 
   // Modais e Interações
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isGoogleModalOpen, setIsGoogleModalOpen] = useState(false);
   const [incomingInvite, setIncomingInvite] = useState(null);
   const [matchmakingGameId, setMatchmakingGameId] = useState(null);
   const [challengeTarget, setChallengeTarget] = useState(null);
   const [bannerAlert, setBannerAlert] = useState('');
 
-  const chatBoxRef = useRef(null);
+  const profileTriggerRef = useRef(null);
+  const chatTriggerRef = useRef(null);
   const chatBoxOverlayRef = useRef(null);
   const chatInputOverlayRef = useRef(null);
   const activeGameRef = useRef(activeGame);
@@ -69,29 +79,42 @@ export default function App() {
 
   useEffect(() => {
     activeGameRef.current = activeGame;
-    if (!activeGame) {
-      setIsChatOverlayOpen(false);
-      setUnreadCount(0);
-    }
   }, [activeGame]);
 
   useEffect(() => {
     isChatOverlayOpenRef.current = isChatOverlayOpen;
     if (isChatOverlayOpen) {
-      setUnreadCount(0);
+      setUnreadChats(current => ({ ...current, [chatTarget]: 0 }));
       const timer = setTimeout(() => chatInputOverlayRef.current?.focus(), 60);
       return () => clearTimeout(timer);
     }
-  }, [isChatOverlayOpen]);
+  }, [isChatOverlayOpen, chatTarget]);
+
+  useEffect(() => { chatTargetRef.current = chatTarget; }, [chatTarget]);
+  useEffect(() => {
+    if ((chatTarget.startsWith('room:') && chatTarget !== `room:${currentRoom}`) ||
+        (chatTarget.startsWith('friend:') && !friends.some(friend => `friend:${friend.id}` === chatTarget))) setChatTarget('global');
+  }, [currentRoom, friends, chatTarget]);
 
   // Conexão WebSocket e Listeners
   useEffect(() => {
     const handleChat = (event) => {
-      setMessages((current) => [...current.slice(-99), event.detail]);
-      if (activeGameRef.current && !isChatOverlayOpenRef.current) {
-        setUnreadCount((c) => c + 1);
+      const message = event.detail;
+      const myId = sdk.player?.id || sdk.player?.playerId;
+      const conversation = message.channel === 'room' ? `room:${message.roomId}` : message.channel === 'direct' ? `friend:${message.senderId === myId ? message.recipientId : message.senderId}` : 'global';
+      setMessages(current => [...current.slice(-499), { ...message, conversation }]);
+      if (message.senderId !== myId && (!isChatOverlayOpenRef.current || chatTargetRef.current !== conversation)) {
+        setUnreadChats(current => ({ ...current, [conversation]: (current[conversation] || 0) + 1 }));
       }
     };
+    const handleChatError = event => {
+      showTemporaryAlert(event.detail.message);
+      const error = event.detail;
+      const target = error.channel === 'room' ? `room:${error.roomId}` : error.channel === 'direct' ? `friend:${error.recipientId}` : 'global';
+      if (chatTargetRef.current === target) setChatMessage(current => current || error.draft || '');
+    };
+    const handleRoomCreated = event => setCurrentRoom(event.detail.roomId);
+    const handleRoomClosed = () => setCurrentRoom(null);
 
     const handleRank = (event) => {
       const list = event.detail.ranks || [];
@@ -107,12 +130,14 @@ export default function App() {
     };
 
     const handleRoomJoined = (event) => {
+      setCurrentRoom(event.detail.roomId);
       setMatchmakingGameId(null);
       const targetGame = event.detail?.gameId || 'pong';
       setActiveGame(targetGame);
     };
 
     const handleGameStart = (event) => {
+      setCurrentRoom(event.detail.roomId);
       setMatchmakingGameId(null);
       if (event.detail?.gameId) {
         setActiveGame(event.detail.gameId);
@@ -131,7 +156,11 @@ export default function App() {
       showTemporaryAlert(event.detail?.message || 'Não foi possível convidar.');
     };
 
-    sdk.addEventListener('CHAT_GLOBAL_MSG', handleChat);
+    sdk.addEventListener('CHAT_MESSAGE', handleChat);
+    sdk.addEventListener('CHAT_ERROR', handleChatError);
+    sdk.addEventListener('ROOM_CREATED', handleRoomCreated);
+    sdk.addEventListener('ROOM_CLOSED', handleRoomClosed);
+    sdk.addEventListener('PLAYER_LEFT', handleRoomClosed);
     sdk.addEventListener('RANK_UPDATED', handleRank);
     sdk.addEventListener('FRIENDS_UPDATED', handleFriends);
     sdk.addEventListener('ROOM_JOINED', handleRoomJoined);
@@ -140,12 +169,21 @@ export default function App() {
     sdk.addEventListener('INVITE_DECLINED', handleInviteDeclined);
     sdk.addEventListener('INVITE_ERROR', handleInviteError);
 
+    setMessages([]);
+    setFriends([]);
+    setUnreadChats({});
+    setChatTarget('global');
+    setCurrentRoom(null);
     sdk.connect(currentUser)
       .then(setProfile)
       .catch(() => setConnectionError('Servidor indisponível'));
 
     return () => {
-      sdk.removeEventListener('CHAT_GLOBAL_MSG', handleChat);
+      sdk.removeEventListener('CHAT_MESSAGE', handleChat);
+    sdk.removeEventListener('CHAT_ERROR', handleChatError);
+    sdk.removeEventListener('ROOM_CREATED', handleRoomCreated);
+    sdk.removeEventListener('ROOM_CLOSED', handleRoomClosed);
+    sdk.removeEventListener('PLAYER_LEFT', handleRoomClosed);
       sdk.removeEventListener('RANK_UPDATED', handleRank);
       sdk.removeEventListener('FRIENDS_UPDATED', handleFriends);
       sdk.removeEventListener('ROOM_JOINED', handleRoomJoined);
@@ -158,21 +196,20 @@ export default function App() {
   }, [currentUser, sdk]);
 
   useEffect(() => {
-    if (chatBoxRef.current) chatBoxRef.current.scrollTop = chatBoxRef.current.scrollHeight;
     if (chatBoxOverlayRef.current) chatBoxOverlayRef.current.scrollTop = chatBoxOverlayRef.current.scrollHeight;
-  }, [messages, isChatOverlayOpen]);
+  }, [messages, isChatOverlayOpen, chatTarget]);
 
   // Teclas de atalho para chat in-game
   useEffect(() => {
-    if (!activeGame) return;
     const handleKeyDown = (e) => {
-      const isInput = e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA';
+      const isInput = e.target.closest('input, textarea, select, [contenteditable="true"]');
       if (e.key === 'Escape' && isChatOverlayOpenRef.current) {
         e.preventDefault();
         setIsChatOverlayOpen(false);
+        chatTriggerRef.current?.focus();
         return;
       }
-      if (!isInput && (e.key === 't' || e.key === 'T' || e.key === 'Enter')) {
+      if (!isInput && !e.target.closest('button, a, [contenteditable="true"]') && (e.key === 't' || e.key === 'T' || e.key === 'Enter')) {
         e.preventDefault();
         setIsChatOverlayOpen((prev) => !prev);
       }
@@ -187,36 +224,42 @@ export default function App() {
   }
 
   function handleGoogleLogin(userData) {
+    exitToHub();
     localStorage.setItem('hub-user-session', JSON.stringify(userData));
-    localStorage.setItem('hub-player-id', userData.id);
-    localStorage.setItem('hub-player-name', userData.name);
+    setProfile(null);
     setCurrentUser(userData);
-    sdk.loginWithGoogle(userData);
+  }
+
+  function playAnonymously() {
+    if (currentUser.googleId) {
+      exitToHub();
+      localStorage.removeItem('hub-user-session');
+      const guest = getStoredUser();
+      setProfile(null);
+      setCurrentUser(guest);
+    }
+    setIsProfileOpen(false);
+    profileTriggerRef.current?.focus();
   }
 
   function sendChat(event) {
     event.preventDefault();
     const message = chatMessage.trim();
     if (!message || !profile) return;
-    sdk.sendChatMessage(message);
-    setChatMessage('');
+    const conversation = chatTarget === 'global' ? { channel: 'global' } : chatTarget.startsWith('room:') ? { channel: 'room', roomId: currentRoom } : { channel: 'direct', recipientId: selectedFriend?.id };
+    if (sdk.sendChatMessage(message, conversation)) setChatMessage('');
+    else showTemporaryAlert('Sem conexão com o servidor. Sua mensagem não foi enviada.');
   }
 
   function exitToHub() {
     sdk.leaveRoom();
+    setCurrentRoom(null);
     if (matchmakingGameId) {
       sdk.leaveQueue(matchmakingGameId);
       setMatchmakingGameId(null);
     }
     setActiveGame(null);
     setIsChatOverlayOpen(false);
-  }
-
-  function joinRoom(event) {
-    event.preventDefault();
-    const code = roomCode.trim().toUpperCase();
-    if (!code || !profile) return;
-    sdk.joinRoom(code);
   }
 
   // Fila de Matchmaking
@@ -272,7 +315,7 @@ export default function App() {
 
   return (
     <>
-      <header className="topbar">
+      <header className={`topbar ${activeGame ? 'topbar-ingame' : ''}`}>
         <button
           className="brand"
           onClick={exitToHub}
@@ -284,27 +327,33 @@ export default function App() {
           <span className={`online-dot ${profile ? '' : 'offline'}`} />
           <span>{profile ? 'Servidor online (SQLite)' : connectionError || 'Conectando...'}</span>
         </div>
-        {activeGame && (
-          <div className="topbar-actions">
+        <div className="topbar-actions">
+          <button type="button" ref={profileTriggerRef} className="topbar-profile-button" aria-label="Seu perfil" aria-haspopup="dialog" aria-expanded={isProfileOpen} onClick={() => { setIsChatOverlayOpen(false); setIsProfileOpen(true); }} title="Seu perfil">
+            {(profile?.avatar_url || currentUser.avatarUrl) ? <img src={profile?.avatar_url || currentUser.avatarUrl} alt="" /> : <span aria-hidden="true">{(profile?.name || currentUser.name || 'P')[0].toUpperCase()}</span>}
+          </button>
             <button
               type="button"
+              ref={chatTriggerRef}
               className={`chat-toggle-button ${isChatOverlayOpen ? 'active' : ''}`}
+              aria-label={`Conversas${unreadCount > 0 ? `, ${unreadCount} mensagens não lidas` : ''}`}
+              aria-expanded={isChatOverlayOpen}
+              aria-controls="ingame-chat"
+              aria-haspopup="dialog"
               onClick={() => setIsChatOverlayOpen((prev) => !prev)}
-              title="Abrir/fechar chat global (Atalho: T ou Enter)"
+              title="Abrir/fechar conversas (Atalho: T ou Enter)"
             >
-              💬 Chat
+              <span aria-hidden="true">💬</span>
               {unreadCount > 0 && !isChatOverlayOpen && (
-                <span className="chat-badge">{unreadCount}</span>
+                <span className="chat-badge">{unreadCount > 99 ? '99+' : unreadCount}</span>
               )}
             </button>
-            <button
+          {activeGame && (<button
               className="nav-button"
               onClick={exitToHub}
             >
               ← Biblioteca
-            </button>
-          </div>
-        )}
+            </button>)}
+        </div>
       </header>
 
       {/* Banner de alerta transitório */}
@@ -330,9 +379,6 @@ export default function App() {
       <div className={activeGame ? 'app-shell ingame-mode' : 'app-shell'}>
         <main className="main-content">
           <section className={activeGame ? 'view hidden' : 'view'} aria-hidden={Boolean(activeGame)}>
-            <div className="section-kicker">
-              Biblioteca de jogos / {String(GAMES_CATALOG.length).padStart(2, '0')}
-            </div>
             <div className="game-list">
               {GAMES_CATALOG.map((game) => (
                 <div key={game.id} className="game-card">
@@ -407,47 +453,8 @@ export default function App() {
 
         {!activeGame && (
           <aside className="sidebar">
-            {/* Perfil com Suporte a Google */}
-            <section className="profile-panel">
-              <div className="panel-heading">Seu perfil</div>
-              <div className="profile-row">
-                <div className="profile-user-group">
-                  <div className="user-avatar-circle">
-                    {profile?.avatar_url ? (
-                      <img src={profile.avatar_url} alt={profile.name} />
-                    ) : (
-                      <span>{(profile?.name || 'P')[0].toUpperCase()}</span>
-                    )}
-                  </div>
-                  <div>
-                    <div className="user-info">{profile?.name || 'Conectando...'}</div>
-                    <div className="rank-info">
-                      V: {profile?.wins ?? 0} <span>·</span> D: {profile?.losses ?? 0}
-                    </div>
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  className="profile-google-badge"
-                  onClick={() => setIsGoogleModalOpen(true)}
-                  title="Conectar ou trocar conta Google"
-                >
-                  <span>Google</span>
-                  <span>🔄</span>
-                </button>
-              </div>
-            </section>
-
             {/* Abas da Sidebar: Chat, Amigos e Ranking */}
             <div className="sidebar-tabs">
-              <button
-                type="button"
-                className={`sidebar-tab-btn ${activeTab === 'chat' ? 'active' : ''}`}
-                onClick={() => setActiveTab('chat')}
-              >
-                💬 Chat
-              </button>
               <button
                 type="button"
                 className={`sidebar-tab-btn ${activeTab === 'friends' ? 'active' : ''}`}
@@ -466,46 +473,6 @@ export default function App() {
                 🏆 Ranking
               </button>
             </div>
-
-            {/* CONTEÚDO DA ABA CHAT */}
-            {activeTab === 'chat' && (
-              <>
-                <div className="chat-box" ref={chatBoxRef} aria-live="polite">
-                  {messages.length === 0 && <p className="chat-empty">A conversa começa aqui.</p>}
-                  {messages.map((message, index) => {
-                    const isOtherUser = message.senderId !== (profile?.id || currentUser.id);
-                    return (
-                      <div className="chat-msg" key={`${message.timestamp}-${message.senderId}-${index}`}>
-                        <div className="chat-msg-header">
-                          <strong>{message.senderName}</strong>
-                          {isOtherUser && (
-                            <button
-                              type="button"
-                              className="chat-challenge-btn"
-                              onClick={() => openChallenge(message)}
-                              title="Convidar para jogar agora"
-                            >
-                              ⚔️ Desafiar
-                            </button>
-                          )}
-                        </div>
-                        <span>{message.message}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-                <form className="chat-form" onSubmit={sendChat}>
-                  <input
-                    value={chatMessage}
-                    onChange={(event) => setChatMessage(event.target.value)}
-                    placeholder="Escreva uma mensagem..."
-                    aria-label="Mensagem no chat global"
-                    disabled={!profile}
-                  />
-                  <button disabled={!profile || !chatMessage.trim()}>Enviar</button>
-                </form>
-              </>
-            )}
 
             {/* CONTEÚDO DA ABA AMIGOS */}
             {activeTab === 'friends' && (
@@ -537,6 +504,7 @@ export default function App() {
                         </div>
                       </div>
                       <div className="friend-action-group">
+                        <button type="button" className="friend-challenge-btn" onClick={() => { setChatTarget(`friend:${f.id}`); setChatMessage(''); setIsChatOverlayOpen(true); }}>💬 Conversar</button>
                         <button
                           type="button"
                           className="friend-challenge-btn"
@@ -595,48 +563,17 @@ export default function App() {
               </div>
             )}
 
-            {/* Entrada em sala por código (Fallback / Acesso direto) */}
-            <form className="join-panel" onSubmit={joinRoom}>
-              <label className="panel-heading" htmlFor="room-code-input">Código manual de sala</label>
-              <input
-                id="room-code-input"
-                value={roomCode}
-                onChange={(event) => setRoomCode(event.target.value)}
-                placeholder="Código RM-XXXX"
-                disabled={!profile}
-              />
-              <button className="subtle-button" disabled={!profile || !roomCode.trim()}>
-                Entrar na partida
-              </button>
-            </form>
+
           </aside>
         )}
       </div>
 
-      {/* Botão flutuante de chat in-game */}
-      {activeGame && !isChatOverlayOpen && (
-        <button
-          type="button"
-          className="floating-chat-trigger"
-          onClick={() => setIsChatOverlayOpen(true)}
-          aria-label="Abrir chat do hub"
-          title="Atalho: T ou Enter"
-        >
-          <span className="floating-chat-icon">💬</span>
-          <span>Chat</span>
-          <span className="chat-key-badge">T</span>
-          {unreadCount > 0 && (
-            <span className="chat-badge">{unreadCount}</span>
-          )}
-        </button>
-      )}
-
       {/* Chat flutuante sobreposto in-game */}
-      {activeGame && isChatOverlayOpen && (
-        <aside className="ingame-chat-drawer" role="dialog" aria-label="Chat Global Sobreposto">
+      {isChatOverlayOpen && (
+        <aside id="ingame-chat" className="ingame-chat-drawer" role="dialog" aria-label="Conversas">
           <div className="ingame-chat-header">
             <div className="chat-heading">
-              <span>Chat global</span>
+              <span>Conversas</span>
               <span className="chat-live">AO VIVO</span>
             </div>
             <div className="ingame-chat-header-actions">
@@ -644,18 +581,32 @@ export default function App() {
               <button
                 type="button"
                 className="chat-close-btn"
-                onClick={() => setIsChatOverlayOpen(false)}
+                onClick={() => { setIsChatOverlayOpen(false); chatTriggerRef.current?.focus(); }}
                 aria-label="Fechar chat"
               >
                 ✕
               </button>
             </div>
           </div>
+          <div className="chat-conversation-picker">
+            <label htmlFor="chat-recipient">Conversar com</label>
+            <select id="chat-recipient" value={chatTarget} onChange={event => { setChatTarget(event.target.value); setChatMessage(''); }}>
+              <option value="global">Global do servidor{unreadChats.global ? ` (${unreadChats.global})` : ''}</option>
+              <option value={currentRoom ? `room:${currentRoom}` : 'room:unavailable'} disabled={!currentRoom}>Adversário da partida{!currentRoom ? ' · indisponível' : unreadChats[`room:${currentRoom}`] ? ` (${unreadChats[`room:${currentRoom}`]})` : ''}</option>
+              <optgroup label="Amigos">
+                {friends.length === 0 && <option disabled>Nenhum amigo adicionado</option>}
+                {friends.map(friend => <option key={friend.id} value={`friend:${friend.id}`}>{friend.name}{unreadChats[`friend:${friend.id}`] ? ` (${unreadChats[`friend:${friend.id}`]})` : ''}</option>)}
+              </optgroup>
+            </select>
+            <small>{chatTarget === 'global' ? 'Todos os jogadores conectados podem ler.' : 'Conversa privada, visível apenas para vocês dois.'}</small>
+          </div>
           <div className="chat-box" ref={chatBoxOverlayRef} aria-live="polite">
-            {messages.length === 0 && <p className="chat-empty">A conversa começa aqui.</p>}
-            {messages.map((message, index) => (
+            {conversationMessages.length === 0 && <p className="chat-empty">A conversa começa aqui.</p>}
+            {conversationMessages.map((message, index) => (
               <div className="chat-msg" key={`${message.timestamp}-${message.senderId}-${index}`}>
-                <strong>{message.senderName}</strong><span>{message.message}</span>
+                <div className="chat-msg-header"><strong>{message.senderName}</strong>
+                  {chatTarget === 'global' && message.senderId !== (profile?.id || currentUser.id) && <button type="button" className="chat-challenge-btn" onClick={() => openChallenge(message)}>⚔️ Desafiar</button>}
+                </div><span>{message.message}</span>
               </div>
             ))}
           </div>
@@ -663,9 +614,10 @@ export default function App() {
             <input
               ref={chatInputOverlayRef}
               value={chatMessage}
+              maxLength={2000}
               onChange={(event) => setChatMessage(event.target.value)}
               placeholder="Escreva uma mensagem... (Enter)"
-              aria-label="Mensagem no chat global"
+              aria-label={`Mensagem para ${chatTitle}`}
               disabled={!profile}
             />
             <button disabled={!profile || !chatMessage.trim()}>Enviar</button>
@@ -673,10 +625,14 @@ export default function App() {
         </aside>
       )}
 
+      <ProfileModal isOpen={isProfileOpen} profile={profile || currentUser} isGuest={!currentUser.googleId}
+        onClose={() => { setIsProfileOpen(false); profileTriggerRef.current?.focus(); }}
+        onAnonymous={playAnonymously}
+        onLogin={() => { setIsProfileOpen(false); setIsGoogleModalOpen(true); }} />
       {/* Modal de Login com Google */}
       <GoogleLoginModal
         isOpen={isGoogleModalOpen}
-        onClose={() => setIsGoogleModalOpen(false)}
+        onClose={() => { setIsGoogleModalOpen(false); profileTriggerRef.current?.focus(); }}
         onLogin={handleGoogleLogin}
       />
 

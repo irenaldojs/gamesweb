@@ -34,8 +34,8 @@ export default function GoogleLoginModal({ isOpen, onClose, onLogin }) {
   }
 
   return (
-    <div className="game-modal-backdrop" onClick={onClose}>
-      <div className="game-dialog google-modal-card" onClick={(e) => e.stopPropagation()}>
+    <div className="game-modal-backdrop account-modal-backdrop" onClick={onClose} onKeyDown={event => { event.stopPropagation(); if (event.key === 'Escape') onClose(); }}>
+      <div role="dialog" aria-modal="true" aria-label="Entrar com conta de demonstração" className="game-dialog google-modal-card" onClick={(e) => e.stopPropagation()}>
         <div className="google-modal-header">
           <div className="google-logo-wrapper">
             <svg viewBox="0 0 24 24" width="28" height="28">
@@ -58,14 +58,14 @@ export default function GoogleLoginModal({ isOpen, onClose, onLogin }) {
             </svg>
           </div>
           <div>
-            <span className="lobby-mark">AUTENTICAÇÃO SEGURA</span>
-            <h2>Entrar com Google</h2>
+            <span className="lobby-mark">CONTA DE DEMONSTRAÇÃO</span>
+            <h2>Entrar com uma conta</h2>
           </div>
           <button className="chat-close-btn" onClick={onClose} aria-label="Fechar modal">✕</button>
         </div>
 
         <p style={{ margin: '8px 0 16px', color: 'var(--muted)', fontSize: '0.88rem' }}>
-          Conecte sua conta para salvar seu ranking no SQLite, adicionar amigos e convidar jogadores diretamente.
+          Este projeto usa contas de demonstração. O acesso abaixo simula um login e não autentica uma conta Google real.
         </p>
 
         {/* Contas rápidas com 1 clique para facilitar testes */}
@@ -121,7 +121,7 @@ export default function GoogleLoginModal({ isOpen, onClose, onLogin }) {
             style={{ width: '100%' }}
             disabled={!customName.trim()}
           >
-            Continuar com o Google
+            Entrar na conta de demonstração
           </button>
         </form>
       </div>
