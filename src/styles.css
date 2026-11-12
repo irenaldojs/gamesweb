@@ -304,3 +304,26 @@ game-hint { margin-top: 14px; color: var(--muted); font-size: 0.8rem; }
   .game-details-art .dom-art { transform: scale(1.25) rotate(-7deg); }
   .game-details-content { padding: 24px; }
 }
+
+/* Dark, high contrast application theme */
+:root { color-scheme: dark; --paper:#101713; --surface:#19221d; --ink:#f2f6f2; --muted:#b1beb5; --line:#344139; --green:#69bd91; --green-dark:#3a8f67; background:#101713; }
+body { background:#101713; color:var(--ink); }
+.topbar,.user-panel,.game-dialog,.game-details-modal,.sidebar,.game-card { background:var(--surface); color:var(--ink); border-color:var(--line); }
+.brand,.section-kicker,.section-copy,.topbar-meta,.game-description,.game-meta,.rank-info,.game-details-description { color:var(--muted); }
+.game-card { box-shadow:0 8px 24px #0005; }
+.game-card:hover { border-color:#69bd91; box-shadow:0 16px 34px #0008; }
+.game-card-title,.game-card:hover .game-card-title { background:#202b24; color:#f5f8f5; border-color:#344139; }
+.game-details-content h2,.game-dialog h2,.user-panel-identity strong { color:var(--ink); }
+.game-details-facts,.game-details-close,.chat-form input,.user-panel-account,.user-panel-chat .chat-form { border-color:var(--line); background:#202b24; color:var(--ink); }
+.user-panel-tabs,.conversation-tabs { background:#141c17; border-color:var(--line); }
+.sidebar-tab-btn,.conversation-tab { color:#c5d0c8; }
+.sidebar-tab-btn.active,.conversation-tab.active,.conversation-tab-wrap.active { background:var(--surface); color:#fff; }
+.user-panel-chat .chat-box { background:#19221d; }
+.user-panel-chat .chat-msg { background:#26332b; border-color:#3a4a3e; color:#f2f6f2; }
+.user-panel-chat .chat-msg strong { color:#8bd9ad; }
+.user-panel-chat .chat-form input::placeholder { color:#aab7ae; }
+.secondary-button,.nav-button,.back-button { background:#26332b; color:#e8f1ea; border-color:#46564a; }
+.secondary-button:hover,.nav-button:hover,.back-button:hover { background:#314237; }
+.game-details-art { background-color:#10271c; }
+.badge { background:#34432b; color:#e0f59a; }
+.user-panel-backdrop { background:rgba(0,0,0,.48); }
