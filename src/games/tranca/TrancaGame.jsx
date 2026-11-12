@@ -76,8 +76,9 @@ function Confetti() {
  * (mão → mesa, monte → mão, mão → lixo...) deslizam da posição anterior até a nova.
  * Cartas novas (sem posição anterior) saem do monte/lixo/morto/assento conforme o último evento.
  */
-function useCardFlip(rootRef, game) {
+function useCardFlip(rootRef, game, sortMode, viewSeat) {
   const prev = useRef(new Map());
+  const animations = useRef(new WeakMap());
 
   useLayoutEffect(() => {
     const root = rootRef.current;
@@ -95,6 +96,7 @@ function useCardFlip(rootRef, game) {
 
     root.querySelectorAll('[data-cid]').forEach((el) => {
       const id = el.dataset.cid;
+      animations.current.get(el)?.cancel();
       const r = el.getBoundingClientRect();
       next.set(id, r);
       if (reduce || !el.animate || r.width === 0) return;
@@ -113,16 +115,17 @@ function useCardFlip(rootRef, game) {
       const dy = from.top - r.top;
       const sx = from.width / r.width;
       if (Math.abs(dx) < 3 && Math.abs(dy) < 3 && Math.abs(sx - 1) < 0.05) return;
-      el.animate(
+      const animation = el.animate(
         [
           { transformOrigin: 'top left', transform: `translate(${dx}px, ${dy}px) scale(${sx})`, zIndex: 60 },
           { transformOrigin: 'top left', transform: 'none', zIndex: 60 },
         ],
         { duration: 540, easing: 'cubic-bezier(0.22, 0.8, 0.25, 1)' },
       );
+      animations.current.set(el, animation);
     });
     prev.current = next;
-  });
+  }, [game, sortMode, viewSeat]);
 }
 
 function MeldView({ meld, mine, canExtend, shaking, onClick }) {
@@ -172,7 +175,7 @@ export default function TrancaGame({ sdk, playerId, connected, active, onExitToH
   const latest = useRef({});
   latest.current = { screen, mode, role, format, target, myName, playerId, active };
 
-  useCardFlip(tableRef, game);
+
 
   /* ----------------------------- Núcleo do jogo ----------------------------- */
 
@@ -326,10 +329,11 @@ export default function TrancaGame({ sdk, playerId, connected, active, onExitToH
     && game.players[viewSeat].kind === 'human';
   const hand = game ? game.hands[viewSeat] : [];
   const sortedHand = useMemo(() => sortCards(hand, sortMode), [hand, sortMode]);
+  useCardFlip(tableRef, game, sortMode, viewSeat);
   const selCards = useMemo(() => hand.filter((c) => selected.includes(c.id)), [hand, selected]);
 
   const initialHandIds = useMemo(
-    () => new Set((game?.hands[viewSeat] || []).map((c) => c.id)),
+    () => new Map(sortedHand.map((c, i) => [c.id, Math.min(i, 12)])),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [game?.round, viewSeat, screen],
   );
@@ -683,7 +687,7 @@ export default function TrancaGame({ sdk, playerId, connected, active, onExitToH
                 </div>
 
                 <div className="bur-hand" key={`${game.round}-${viewSeat}`}>
-                  {sortedHand.map((c, i) => {
+                  {sortedHand.map((c) => {
                     const isSel = selected.includes(c.id);
                     const initial = initialHandIds.has(c.id);
                     return (
@@ -691,7 +695,7 @@ export default function TrancaGame({ sdk, playerId, connected, active, onExitToH
                         <Card
                           card={c}
                           className={`${initial ? 'deal' : ''} ${isSel ? 'sel' : ''} ${myTurn && game.phase === 'play' ? 'clickable' : ''} ${game.mustUse === c.id ? 'must' : ''}`}
-                          style={{ '--i': Math.min(i, 12) }}
+                          style={{ '--i': initialHandIds.get(c.id) ?? 0 }}
                           onClick={() => onCard(c)}
                         />
                       </span>
