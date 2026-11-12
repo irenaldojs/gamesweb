@@ -158,7 +158,7 @@ function MeldView({ meld, mine, canExtend, shaking, onClick }) {
   );
 }
 
-export default function BuracoGame({ sdk, playerId, connected, active, onExitToHub, onFindOpponent, onInviteFriend }) {
+export default function BuracoGame({ sdk, playerId, connected, active, onExitToHub, onFindOpponent, onInviteFriend, gameInfoOpen, onCloseGameInfo }) {
   const [screen, setScreen] = useState('lobby'); // 'lobby' | 'game' | 'opponent_left'
   const [mode, setMode] = useState(null); // 'solo' | 'local' | 'online'
   const [role, setRole] = useState(sdk.role);
@@ -184,6 +184,13 @@ export default function BuracoGame({ sdk, playerId, connected, active, onExitToH
   latest.current = { screen, mode, role, format, target, myName, playerId, active };
 
   useCardFlip(tableRef, game);
+
+  useEffect(() => {
+    if (!gameInfoOpen) return undefined;
+    const closeOnEscape = (event) => { if (event.key === 'Escape') onCloseGameInfo?.(); };
+    window.addEventListener('keydown', closeOnEscape);
+    return () => window.removeEventListener('keydown', closeOnEscape);
+  }, [gameInfoOpen, onCloseGameInfo]);
 
   /* ----------------------------- Núcleo do jogo ----------------------------- */
 
@@ -233,6 +240,7 @@ export default function BuracoGame({ sdk, playerId, connected, active, onExitToH
   }, [commit, sdk]);
 
   const backToLobby = useCallback((msg = '') => {
+    onCloseGameInfo?.();
     if (sdk.roomId) sdk.leaveRoom();
     sdk.role = null;
     setRole(null);
@@ -244,7 +252,7 @@ export default function BuracoGame({ sdk, playerId, connected, active, onExitToH
     setCurtain(false);
     setScreen('lobby');
     setStatus(msg);
-  }, [sdk]);
+  }, [sdk, onCloseGameInfo]);
 
   /* ------------------------------ Listeners SDK ----------------------------- */
 
@@ -490,16 +498,9 @@ export default function BuracoGame({ sdk, playerId, connected, active, onExitToH
     const labels = { draw: 'Comprou', takePile: 'Pegou o lixo!', meld: 'Baixou jogo', extend: 'Encaixou', discard: 'Descartou' };
     const bubble = L.seat === seat && labels[L.type] ? L : null;
     return (
-      <div key={seat} className={`bur-seat ${isTurn ? 'active' : ''}`} data-seat={seat} style={{ '--seat': pl.color }}>
-        <div className="bur-seat-head">
-          <span className="bur-avatar" style={{ background: pl.color }}>{pl.avatar}</span>
-          <span className="bur-seat-text">
-            <strong>{pl.name}</strong>
-            <small>{partner ? 'Parceiro' : game.n === 4 ? 'Adversário' : pl.kind === 'bot' ? 'IA' : 'Adversário'}</small>
-          </span>
-          <span className="bur-count">{game.hands[seat].length}</span>
-        </div>
-        <MiniHand key={`${game.round}-${seat}`} count={game.hands[seat].length} />
+      <div key={seat} className={`bur-seat ${isTurn ? 'active' : ''}`} data-seat={seat} style={{ '--seat': pl.color }} title={`${pl.name} · ${partner ? 'Parceiro' : pl.kind === 'bot' ? 'IA' : 'Adversário'} · ${game.hands[seat].length} cartas`} aria-label={`${pl.name}, ${game.hands[seat].length} cartas`}>
+        <span className="bur-avatar" style={{ background: pl.color }}>{pl.avatar}</span>
+        <span className="bur-count">{game.hands[seat].length}</span>
         {bubble && <span key={bubble.seq} className="bur-bubble">{labels[bubble.type]}</span>}
       </div>
     );
@@ -535,7 +536,7 @@ export default function BuracoGame({ sdk, playerId, connected, active, onExitToH
   const fmt = FORMATS.find((f) => f.id === format);
 
   return (
-    <div className="bur-view">
+    <div className="bur-view buraco-view">
       <div className="bur-layout">
         <div className="bur-table-wrap">
           <div className="bur-table" ref={tableRef}>
@@ -706,11 +707,6 @@ export default function BuracoGame({ sdk, playerId, connected, active, onExitToH
             {game && (
               <div className={`bur-dock ${myTurn ? 'my-turn' : ''}`} data-seat={viewSeat} style={{ '--seat': game.players[viewSeat].color }}>
                 <div className="bur-dock-head">
-                  <span className="bur-avatar" style={{ background: game.players[viewSeat].color }}>{game.players[viewSeat].avatar}</span>
-                  <span className="bur-seat-text">
-                    <strong>{game.players[viewSeat].name}{mode === 'local' ? '' : ' (você)'}</strong>
-                    <small>{hand.length} cartas</small>
-                  </span>
                   <span className={`bur-hint ${myTurn ? 'on' : ''}`}>{hint}</span>
                 </div>
 
@@ -732,15 +728,17 @@ export default function BuracoGame({ sdk, playerId, connected, active, onExitToH
                 </div>
 
                 <div className="bur-actions">
-                  <button type="button" className="primary-button" disabled={!canMeld} onClick={() => send({ type: 'meld', ids: selected })}>
+                  {selected.length > 0 && <>
+                  {canMeld && <button type="button" className="primary-button" onClick={() => send({ type: 'meld', ids: selected })}>
                     Baixar jogo
-                  </button>
-                  <button type="button" className="secondary-button" disabled={!canDiscard} onClick={() => send({ type: 'discard', id: selected[0] })}>
+                  </button>}
+                  {canDiscard && <button type="button" className="primary-button" onClick={() => send({ type: 'discard', id: selected[0] })}>
                     Descartar
-                  </button>
+                  </button>}
                   <button type="button" className="secondary-button" disabled={selected.length === 0} onClick={() => setSelected([])}>
                     Limpar
                   </button>
+                  </>}
                   <button type="button" className="secondary-button" onClick={() => setSortMode((m) => (m === 'suit' ? 'rank' : 'suit'))}>
                     Ordem: {sortMode === 'suit' ? 'Naipe' : 'Valor'}
                   </button>
@@ -759,7 +757,9 @@ export default function BuracoGame({ sdk, playerId, connected, active, onExitToH
         </div>
 
         {/* Painel lateral */}
-        <div className="bur-info-panel">
+        {gameInfoOpen && game && <div className="bur-info-overlay" onClick={onCloseGameInfo}>
+        <div id="buraco-info" className="bur-info-panel" role="dialog" aria-modal="true" aria-label="Informações da partida" onClick={(event) => event.stopPropagation()}>
+          <button type="button" className="bur-info-close" onClick={onCloseGameInfo} aria-label="Fechar informações">×</button>
           {game && (
             <>
               <div className="bur-card">
@@ -821,6 +821,7 @@ export default function BuracoGame({ sdk, playerId, connected, active, onExitToH
             </>
           )}
         </div>
+        </div>}
       </div>
 
       {/* Modais padrão do Hub */}

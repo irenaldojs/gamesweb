@@ -50,6 +50,7 @@ export default function App() {
   const [profile, setProfile] = useState(null);
   const [connectionError, setConnectionError] = useState('');
   const [activeGame, setActiveGame] = useState(null);
+  const [gameInfoOpen, setGameInfoOpen] = useState(false);
   const [messages, setMessages] = useState([]);
   const [chatMessage, setChatMessage] = useState('');
   const [isChatOverlayOpen, setIsChatOverlayOpen] = useState(false);
@@ -257,6 +258,7 @@ export default function App() {
   }
 
   function exitToHub() {
+    setGameInfoOpen(false);
     sdk.leaveRoom();
     setCurrentRoom(null);
     if (matchmakingGameId) {
@@ -352,6 +354,7 @@ export default function App() {
           <span>{profile ? 'Servidor online (SQLite)' : connectionError || 'Conectando...'}</span>
         </div>
         <div className="topbar-actions">
+          {activeGame === 'buraco' && <button type="button" className="nav-button" aria-expanded={gameInfoOpen} aria-controls="buraco-info" onClick={() => setGameInfoOpen(open => !open)}>ⓘ Informações</button>}
           <button type="button" ref={profileTriggerRef} className="topbar-profile-button" aria-label="Abrir opções do usuário" aria-haspopup="dialog" aria-controls="user-panel" aria-expanded={isUserPanelOpen} onClick={() => { setIsUserPanelOpen(value => { const nextOpen = !value; setIsChatOverlayOpen(nextOpen && activeTab === 'chat'); return nextOpen; }); }} title="Opções do usuário">
             {(profile?.avatar_url || currentUser.avatarUrl) ? <img src={profile?.avatar_url || currentUser.avatarUrl} alt="" /> : <span aria-hidden="true">{(profile?.name || currentUser.name || 'P')[0].toUpperCase()}</span>}
           </button>
@@ -384,7 +387,7 @@ export default function App() {
         </div>
       )}
 
-      <div className={activeGame ? 'app-shell ingame-mode' : 'app-shell'}>
+      <div className={`app-shell${activeGame ? ' ingame-mode' : ''}${activeGame === 'buraco' ? ' buraco-mode' : ''}`}>
         <main className="main-content">
           <section className={activeGame ? 'view hidden' : 'view'} aria-hidden={Boolean(activeGame)}>
             <div className="game-list">
@@ -411,6 +414,8 @@ export default function App() {
                   playerId={playerIdentifier(profile || currentUser)}
                   connected={Boolean(profile)}
                   active={isThisGameActive}
+                  gameInfoOpen={isThisGameActive && gameInfoOpen}
+                  onCloseGameInfo={() => setGameInfoOpen(false)}
                   onExitToHub={exitToHub}
                   onFindOpponent={startMatchmaking}
                   onInviteFriend={gameId => setInviteGameId(gameId)}

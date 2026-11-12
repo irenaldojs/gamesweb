@@ -79,7 +79,7 @@ button:focus-visible, input:focus-visible { outline: 3px solid rgba(22,75,58,0.2
   margin: 0 auto;
   padding: 12px 12px;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 320px;
+  grid-template-columns: minmax(0, 1fr);
   align-items: start;
   justify-content: end;
   gap: 12px;
@@ -91,7 +91,7 @@ button:focus-visible, input:focus-visible { outline: 3px solid rgba(22,75,58,0.2
 .section-copy { margin: 8px 0 0; color: var(--muted); font-size: 0.97rem; }
 .game-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: 20px; margin-top: 28px; }
 @media (min-width: 861px) {
-  .game-list { display: flex; flex-wrap: wrap; justify-content: center; }
+  .game-list { display: flex; flex-wrap: wrap; justify-content: flex-start; }
   .game-list .game-card { flex: 0 0 calc((100% - 60px) / 4); }
 }
 .game-card {
