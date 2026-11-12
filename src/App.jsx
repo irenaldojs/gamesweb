@@ -361,7 +361,7 @@ export default function App() {
           <span>{profile ? 'Servidor online (SQLite)' : connectionError || 'Conectando...'}</span>
         </div>
         <div className="topbar-actions">
-          {['buraco', 'chess', 'damas', 'domino'].includes(activeGame) && <button type="button" className="nav-button game-info-button" aria-label="Informações da partida" title="Informações da partida" aria-expanded={gameInfoOpen} aria-controls={`${activeGame}-info`} onClick={() => setGameInfoOpen(open => !open)}><span className="game-info-icon" aria-hidden="true">i</span><span className="game-info-label">Informações</span></button>}
+          {['buraco', 'tranca', 'chess', 'damas', 'domino'].includes(activeGame) && <button type="button" className="nav-button game-info-button" aria-label="Informações da partida" title="Informações da partida" aria-expanded={gameInfoOpen} aria-controls={`${activeGame}-info`} onClick={() => setGameInfoOpen(open => !open)}><span className="game-info-icon" aria-hidden="true">i</span><span className="game-info-label">Informações</span></button>}
           <button type="button" ref={profileTriggerRef} className="topbar-profile-button" aria-label="Abrir opções do usuário" aria-haspopup="dialog" aria-controls="user-panel" aria-expanded={isUserPanelOpen} onClick={() => { setIsUserPanelOpen(value => { const nextOpen = !value; setIsChatOverlayOpen(nextOpen && activeTab === 'chat'); return nextOpen; }); }} title="Opções do usuário">
             {(profile?.avatar_url || currentUser.avatarUrl) ? <img src={profile?.avatar_url || currentUser.avatarUrl} alt="" /> : <span aria-hidden="true">{(profile?.name || currentUser.name || 'P')[0].toUpperCase()}</span>}
           </button>
@@ -388,7 +388,7 @@ export default function App() {
         </div>
       )}
 
-      <div className={`app-shell${activeGame ? ' ingame-mode' : ''}${activeGame === 'buraco' ? ' buraco-mode' : ''}${activeGame === 'domino' ? ' domino-mode' : ''}${['chess', 'damas'].includes(activeGame) ? ' board-mode' : ''}`}>
+      <div className={`app-shell${activeGame ? ' ingame-mode' : ''}${['buraco', 'tranca'].includes(activeGame) ? ' buraco-mode' : ''}${activeGame === 'domino' ? ' domino-mode' : ''}${['chess', 'damas'].includes(activeGame) ? ' board-mode' : ''}`}>
         <main className="main-content">
           <section className={activeGame ? 'view hidden' : 'view'} aria-hidden={Boolean(activeGame)}>
             <div className="game-list">

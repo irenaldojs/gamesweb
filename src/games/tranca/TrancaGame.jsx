@@ -125,17 +125,6 @@ function useCardFlip(rootRef, game) {
   });
 }
 
-function MiniHand({ count }) {
-  const shown = Math.min(count, 12);
-  return (
-    <div className="bur-mini-hand" aria-label={`${count} cartas`}>
-      {Array.from({ length: shown }, (_, i) => (
-        <Card key={i} faceDown className="bur-mini deal" style={{ '--i': i }} />
-      ))}
-    </div>
-  );
-}
-
 function MeldView({ meld, mine, canExtend, shaking, onClick }) {
   const canasta = isCanasta(meld);
   const clean = isClean(meld);
@@ -158,7 +147,7 @@ function MeldView({ meld, mine, canExtend, shaking, onClick }) {
   );
 }
 
-export default function TrancaGame({ sdk, playerId, connected, active, onExitToHub, onFindOpponent, onInviteFriend }) {
+export default function TrancaGame({ sdk, playerId, connected, active, onExitToHub, onFindOpponent, onInviteFriend, gameInfoOpen, onCloseGameInfo }) {
   const [screen, setScreen] = useState('lobby'); // 'lobby' | 'game' | 'opponent_left'
   const [mode, setMode] = useState(null); // 'solo' | 'local' | 'online'
   const [role, setRole] = useState(sdk.role);
@@ -471,7 +460,6 @@ export default function TrancaGame({ sdk, playerId, connected, active, onExitToH
 
   /* ------------------------------- Renderização ------------------------------- */
 
-  const opponents = game ? Array.from({ length: game.n - 1 }, (_, i) => (viewSeat + 1 + i) % game.n) : [];
   const result = game?.result;
   const teamLabel = (t) => {
     if (!game) return '';
@@ -485,22 +473,11 @@ export default function TrancaGame({ sdk, playerId, connected, active, onExitToH
   function renderSeat(seat) {
     const pl = game.players[seat];
     const isTurn = playing && game.turn === seat;
-    const partner = game.n === 4 && teamOf(game, seat) === myTeam;
-    const L = game.last;
-    const labels = { draw: 'Comprou', takePile: 'Pegou o lixo!', meld: 'Baixou jogo', extend: 'Encaixou', discard: 'Descartou' };
-    const bubble = L.seat === seat && labels[L.type] ? L : null;
+    const partner = seat !== viewSeat && teamOf(game, seat) === myTeam;
     return (
-      <div key={seat} className={`bur-seat ${isTurn ? 'active' : ''}`} data-seat={seat} style={{ '--seat': pl.color }}>
-        <div className="bur-seat-head">
-          <span className="bur-avatar" style={{ background: pl.color }}>{pl.avatar}</span>
-          <span className="bur-seat-text">
-            <strong>{pl.name}</strong>
-            <small>{partner ? 'Parceiro' : game.n === 4 ? 'Adversário' : pl.kind === 'bot' ? 'IA' : 'Adversário'}</small>
-          </span>
-          <span className="bur-count">{game.hands[seat].length}</span>
-        </div>
-        <MiniHand key={`${game.round}-${seat}`} count={game.hands[seat].length} />
-        {bubble && <span key={bubble.seq} className="bur-bubble">{labels[bubble.type]}</span>}
+      <div key={seat} className={`bur-seat ${isTurn ? 'active' : ''}`} data-seat={seat} style={{ '--seat': pl.color }} title={`${pl.name} · ${seat === viewSeat ? 'Você' : partner ? 'Parceiro' : pl.kind === 'bot' ? 'IA' : 'Adversário'} · ${game.hands[seat].length} cartas`} aria-label={`${pl.name}, ${game.hands[seat].length} cartas${isTurn ? ', jogando agora' : ''}`}>
+        <span className="bur-avatar" style={{ background: pl.color }}>{pl.avatar}</span>
+        <span className="bur-count">{game.hands[seat].length}</span>
       </div>
     );
   }
@@ -535,15 +512,10 @@ export default function TrancaGame({ sdk, playerId, connected, active, onExitToH
   const fmt = FORMATS.find((f) => f.id === format);
 
   return (
-    <div className="bur-view">
+    <div className="bur-view buraco-view">
       <div className="bur-layout">
         <div className="bur-table-wrap">
           <div className="bur-table" ref={tableRef}>
-            {/* Oponentes */}
-            <div className="bur-opponents">
-              {game ? opponents.map(renderSeat) : <div className="bur-empty-title">Mesa de Tranca</div>}
-            </div>
-
             {/* Centro: pilhas + jogos */}
             <div className="bur-board">
               {game ? (
@@ -614,14 +586,14 @@ export default function TrancaGame({ sdk, playerId, connected, active, onExitToH
 
                   <div className="bur-melds-col">
                     <div className="bur-melds-zone theirs" style={{ '--seat': TEAM_COLORS[1 - myTeam] }}>
-                      <span className="bur-zone-label">Jogos deles</span>
+                      <div className="bur-zone-head"><span className="bur-zone-label">Jogos deles</span><div className="bur-team-avatars">{game.players.map((_, seat) => teamOf(game, seat) !== myTeam && renderSeat(seat))}</div></div>
                       <div className="bur-meld-list">
                         {oppMelds.length === 0 && <span className="bur-zone-empty">Nenhum jogo baixado</span>}
                         {oppMelds.map((m) => <MeldView key={m.id} meld={m} mine={false} />)}
                       </div>
                     </div>
                     <div className="bur-melds-zone mine" style={{ '--seat': TEAM_COLORS[myTeam] }}>
-                      <span className="bur-zone-label">Nossos jogos</span>
+                      <div className="bur-zone-head"><span className="bur-zone-label">Nossos jogos</span><div className="bur-team-avatars">{game.players.map((_, seat) => teamOf(game, seat) === myTeam && renderSeat(seat))}</div></div>
                       <div className="bur-meld-list">
                         {myMelds.length === 0 && <span className="bur-zone-empty">Baixe sequências ou trincas (mín. 3)</span>}
                         {myMelds.map((m) => (
@@ -707,11 +679,6 @@ export default function TrancaGame({ sdk, playerId, connected, active, onExitToH
             {game && (
               <div className={`bur-dock ${myTurn ? 'my-turn' : ''}`} data-seat={viewSeat} style={{ '--seat': game.players[viewSeat].color }}>
                 <div className="bur-dock-head">
-                  <span className="bur-avatar" style={{ background: game.players[viewSeat].color }}>{game.players[viewSeat].avatar}</span>
-                  <span className="bur-seat-text">
-                    <strong>{game.players[viewSeat].name}{mode === 'local' ? '' : ' (você)'}</strong>
-                    <small>{hand.length} cartas</small>
-                  </span>
                   <span className={`bur-hint ${myTurn ? 'on' : ''}`}>{hint}</span>
                 </div>
 
@@ -733,15 +700,17 @@ export default function TrancaGame({ sdk, playerId, connected, active, onExitToH
                 </div>
 
                 <div className="bur-actions">
-                  <button type="button" className="primary-button" disabled={!canMeld} onClick={() => send({ type: 'meld', ids: selected })}>
+                  {selected.length > 0 && <>
+                  {canMeld && <button type="button" className="primary-button" onClick={() => send({ type: 'meld', ids: selected })}>
                     Baixar jogo
-                  </button>
-                  <button type="button" className="secondary-button" disabled={!canDiscard} onClick={() => send({ type: 'discard', id: selected[0] })}>
+                  </button>}
+                  {canDiscard && <button type="button" className="primary-button" onClick={() => send({ type: 'discard', id: selected[0] })}>
                     Descartar
-                  </button>
-                  <button type="button" className="secondary-button" disabled={selected.length === 0} onClick={() => setSelected([])}>
+                  </button>}
+                  <button type="button" className="secondary-button" onClick={() => setSelected([])}>
                     Limpar
                   </button>
+                  </>}
                   <button type="button" className="secondary-button" onClick={() => setSortMode((m) => (m === 'suit' ? 'rank' : 'suit'))}>
                     Ordem: {sortMode === 'suit' ? 'Naipe' : 'Valor'}
                   </button>
@@ -759,8 +728,10 @@ export default function TrancaGame({ sdk, playerId, connected, active, onExitToH
           </div>
         </div>
 
-        {/* Painel lateral */}
-        <div className="bur-info-panel">
+        {/* Informações da partida */}
+        {gameInfoOpen && game && <div className="bur-info-overlay" onClick={onCloseGameInfo}>
+        <div id="tranca-info" className="bur-info-panel" role="dialog" aria-modal="true" aria-label="Informações da partida" onClick={(event) => event.stopPropagation()}>
+          <button type="button" className="bur-info-close" onClick={onCloseGameInfo} aria-label="Fechar informações">×</button>
           {game && (
             <>
               <div className="bur-card">
@@ -814,6 +785,7 @@ export default function TrancaGame({ sdk, playerId, connected, active, onExitToH
                 className="secondary-button"
                 onClick={() => {
                   if (confirm('Deseja sair da partida de Tranca?')) {
+                    onCloseGameInfo();
                     backToLobby(mode === 'online' ? 'Você abandonou a partida.' : '');
                   }
                 }}
@@ -823,6 +795,7 @@ export default function TrancaGame({ sdk, playerId, connected, active, onExitToH
             </>
           )}
         </div>
+        </div>}
       </div>
 
       {/* Modais padrão do Hub */}
