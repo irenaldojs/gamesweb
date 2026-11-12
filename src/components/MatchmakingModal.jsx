@@ -4,6 +4,7 @@ const GAME_NAMES = {
   pong: 'Pong Arcade',
   chess: 'Xadrez Clássico',
   damas: 'Jogo de Damas',
+  domino: 'Dominó',
 };
 
 export default function MatchmakingModal({ gameId, onCancel }) {

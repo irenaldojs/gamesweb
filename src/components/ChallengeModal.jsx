@@ -1,13 +1,12 @@
 import React, { useState } from 'react';
 
 const GAMES = [
-  { id: 'pong', title: 'Pong Arcade', icon: '🏓', desc: 'Disputa clássica de 5 pontos' },
   { id: 'chess', title: 'Xadrez Clássico', icon: '♔', desc: 'Batalha tática no tabuleiro 8x8' },
   { id: 'damas', title: 'Jogo de Damas', icon: '👑', desc: 'Saltos e capturas em cadeia' },
 ];
 
 export default function ChallengeModal({ targetPlayer, onClose, onSendChallenge }) {
-  const [selectedGame, setSelectedGame] = useState('pong');
+  const [selectedGame, setSelectedGame] = useState('chess');
 
   if (!targetPlayer) return null;
 

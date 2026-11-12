@@ -1,28 +1,10 @@
 import React from 'react';
-import PongGame from './pong/PongGame.jsx';
 import ChessGame from './chess/ChessGame.jsx';
 import DamasGame from './damas/DamasGame.jsx';
 import DominoGame from './domino/DominoGame.jsx';
 import { DominoArt } from './domino/DominoTile.jsx';
 
 export const GAMES_CATALOG = [
-  {
-    id: 'pong',
-    number: '001',
-    title: 'Pong',
-    category: 'Arcade',
-    players: '1–2 jogadores',
-    description: 'Reflexos rápidos. Disputa direta. Uma mesa clássica, pronta para jogar.',
-    meta: 'Partidas de 5 pontos',
-    renderArt: () => (
-      <span className="court">
-        <span className="court-paddle left" />
-        <span className="court-paddle right" />
-        <span className="court-ball" />
-      </span>
-    ),
-    component: PongGame,
-  },
   {
     id: 'chess',
     number: '002',

@@ -109,7 +109,7 @@ function MiniHand({ hand, reveal }) {
   );
 }
 
-export default function DominoGame({ sdk, playerId, connected, active, onExitToHub }) {
+export default function DominoGame({ sdk, playerId, connected, active, onExitToHub, onFindOpponent, onInviteFriend }) {
   const [screen, setScreen] = useState('lobby'); // 'lobby' | 'game' | 'opponent_left'
   const [mode, setMode] = useState(null); // 'solo' | 'local' | 'online'
   const [role, setRole] = useState(sdk.role);
@@ -831,7 +831,12 @@ export default function DominoGame({ sdk, playerId, connected, active, onExitToH
                 <button type="button" className="secondary-button" onClick={() => startMatch('local')}>
                   Mesa local ({seats})
                 </button>
-
+                <button type="button" className="secondary-button" onClick={() => onFindOpponent?.('domino')}>
+                  Buscar jogador
+                </button>
+                <button type="button" className="secondary-button" onClick={() => onInviteFriend?.('domino')}>
+                  Convidar amigo
+                </button>
               </>
             )}
           </div>

@@ -11,9 +11,10 @@ export default function GameDialog({
   status,
   primaryAction,
   secondaryAction,
+  additionalActions = [],
   children,
 }) {
-  const hasActions = Boolean(primaryAction || secondaryAction);
+  const hasActions = Boolean(primaryAction || secondaryAction || additionalActions.length);
 
   return (
     <div className="game-modal-backdrop">
@@ -25,7 +26,7 @@ export default function GameDialog({
         {children}
 
         {hasActions && (
-          <div className="lobby-actions">
+          <div className={`lobby-actions ${additionalActions.length ? 'game-mode-actions' : ''}`}>
             {primaryAction && (
               <button
                 type="button"
@@ -46,6 +47,11 @@ export default function GameDialog({
                 {secondaryAction.label}
               </button>
             )}
+            {additionalActions.map(action => (
+              <button key={action.label} type="button" className={action.className || 'secondary-button'} onClick={action.onClick} disabled={action.disabled}>
+                {action.label}
+              </button>
+            ))}
           </div>
         )}
 

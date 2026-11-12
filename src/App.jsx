@@ -5,6 +5,8 @@ import GoogleLoginModal from './components/GoogleLoginModal.jsx';
 import InviteToast from './components/InviteToast.jsx';
 import MatchmakingModal from './components/MatchmakingModal.jsx';
 import ChallengeModal from './components/ChallengeModal.jsx';
+import GameDetailsModal from './components/GameDetailsModal.jsx';
+import FriendInviteModal from './components/FriendInviteModal.jsx';
 
 function getStoredUser() {
   const stored = localStorage.getItem('hub-user-session');
@@ -48,6 +50,7 @@ export default function App() {
   const [unreadChats, setUnreadChats] = useState({});
   const unreadCount = Object.values(unreadChats).reduce((sum, count) => sum + count, 0);
   const [chatTarget, setChatTarget] = useState('global');
+  const [openChatTargets, setOpenChatTargets] = useState(['global']);
   const chatTargetRef = useRef(chatTarget);
   const [currentRoom, setCurrentRoom] = useState(null);
 
@@ -67,6 +70,8 @@ export default function App() {
   const [incomingInvite, setIncomingInvite] = useState(null);
   const [matchmakingGameId, setMatchmakingGameId] = useState(null);
   const [challengeTarget, setChallengeTarget] = useState(null);
+  const [selectedGame, setSelectedGame] = useState(null);
+  const [inviteGameId, setInviteGameId] = useState(null);
   const [bannerAlert, setBannerAlert] = useState('');
 
   const profileTriggerRef = useRef(null);
@@ -130,7 +135,7 @@ export default function App() {
     const handleRoomJoined = (event) => {
       setCurrentRoom(event.detail.roomId);
       setMatchmakingGameId(null);
-      const targetGame = event.detail?.gameId || 'pong';
+      const targetGame = event.detail?.gameId || 'chess';
       setActiveGame(targetGame);
     };
 
@@ -283,6 +288,11 @@ export default function App() {
     showTemporaryAlert('Convite de partida enviado! Aguardando resposta...');
   }
 
+  function inviteFriendToGame(targetPlayerId, gameId) {
+    sendChallenge(targetPlayerId, gameId);
+    setInviteGameId(null);
+  }
+
   function acceptInvite(invite) {
     setIncomingInvite(null);
     sdk.acceptInvite(invite.inviteId, invite.fromPlayerId, invite.gameId);
@@ -305,6 +315,20 @@ export default function App() {
 
   function removeFriend(friendId) {
     sdk.removeFriend(friendId);
+  }
+
+  function openFriendChat(friend) {
+    const target = `friend:${friend.id}`;
+    setOpenChatTargets(current => current.includes(target) ? current : [...current, target]);
+    setChatTarget(target);
+    setChatMessage('');
+    setActiveTab('chat');
+    setIsChatOverlayOpen(true);
+  }
+
+  function closeFriendChat(target) {
+    setOpenChatTargets(current => current.filter(item => item !== target));
+    if (chatTarget === target) setChatTarget('global');
   }
 
   return (
@@ -359,51 +383,10 @@ export default function App() {
           <section className={activeGame ? 'view hidden' : 'view'} aria-hidden={Boolean(activeGame)}>
             <div className="game-list">
               {GAMES_CATALOG.map((game) => (
-                <div key={game.id} className="game-card">
-                  <div
-                    className="game-art"
-                    aria-hidden="true"
-                    onClick={() => setActiveGame(game.id)}
-                    style={{ cursor: 'pointer' }}
-                  >
-                    <span className="game-art-label">GameHub Original / {game.number}</span>
-                    {game.renderArt()}
-                  </div>
-                  <div className="game-info">
-                    <div className="game-overline">
-                      <span className="badge">{game.category}</span>
-                      <span>{game.players}</span>
-                    </div>
-                    <span
-                      className="game-title"
-                      onClick={() => setActiveGame(game.id)}
-                      style={{ cursor: 'pointer' }}
-                    >
-                      {game.title}
-                    </span>
-                    <span className="game-description">{game.description}</span>
-                    <div className="game-footer">
-                      <span className="game-meta">{game.meta}</span>
-                      <div className="game-card-actions">
-                        <button
-                          type="button"
-                          className="quick-queue-btn"
-                          onClick={() => startMatchmaking(game.id)}
-                          title="Entrar na fila e encontrar um jogador online automaticamente"
-                        >
-                          ⚡ Fila Rápida
-                        </button>
-                        <button
-                          type="button"
-                          className="play-button"
-                          onClick={() => setActiveGame(game.id)}
-                        >
-                          Jogar <span aria-hidden="true">→</span>
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                <button key={game.id} type="button" className="game-card" onClick={() => setSelectedGame(game)} aria-label={`Ver detalhes de ${game.title}`}>
+                  <div className="game-art" aria-hidden="true">{game.renderArt()}</div>
+                  <span className="game-card-title">{game.title}</span>
+                </button>
               ))}
             </div>
           </section>
@@ -423,6 +406,8 @@ export default function App() {
                   connected={Boolean(profile)}
                   active={isThisGameActive}
                   onExitToHub={exitToHub}
+                  onFindOpponent={startMatchmaking}
+                  onInviteFriend={gameId => setInviteGameId(gameId)}
                 />
               </section>
             );
@@ -500,7 +485,7 @@ export default function App() {
                         </div>
                       </div>
                       <div className="friend-action-group">
-                        <button type="button" className="friend-challenge-btn" onClick={() => { setChatTarget(`friend:${f.id}`); setChatMessage(''); setActiveTab('chat'); setIsChatOverlayOpen(true); }}>💬 Conversar</button>
+                        <button type="button" className="friend-challenge-btn" onClick={() => openFriendChat(f)}>💬 Conversar</button>
                         <button
                           type="button"
                           className="friend-challenge-btn"
@@ -525,16 +510,20 @@ export default function App() {
 
             {activeTab === 'chat' && (
               <section className="user-panel-chat">
-                <div className="chat-conversation-picker">
-                  <label htmlFor="chat-recipient">Conversar com</label>
-                  <select id="chat-recipient" value={chatTarget} onChange={event => { setChatTarget(event.target.value); setChatMessage(''); }}>
-                    <option value="global">Chat global{unreadChats.global ? ` (${unreadChats.global})` : ''}</option>
-                    <option value={currentRoom ? `room:${currentRoom}` : 'room:unavailable'} disabled={!currentRoom}>Adversário da partida{!currentRoom ? ' · indisponível' : ''}</option>
-                    <optgroup label="Amigos">
-                      {friends.length === 0 && <option disabled>Nenhum amigo adicionado</option>}
-                      {friends.map(friend => <option key={friend.id} value={`friend:${friend.id}`}>{friend.name}</option>)}
-                    </optgroup>
-                  </select>
+                <div className="conversation-tabs" role="tablist" aria-label="Conversas abertas">
+                  <button type="button" role="tab" aria-selected={chatTarget === 'global'} className={`conversation-tab ${chatTarget === 'global' ? 'active' : ''}`} onClick={() => { setChatTarget('global'); setChatMessage(''); }}>
+                    <span>🌐 Global</span>{unreadChats.global > 0 && <i>{unreadChats.global}</i>}
+                  </button>
+                  {openChatTargets.filter(target => target !== 'global').map(target => {
+                    const friend = friends.find(item => `friend:${item.id}` === target);
+                    if (!friend) return null;
+                    return <div role="presentation" className={`conversation-tab-wrap ${chatTarget === target ? 'active' : ''}`} key={target}>
+                      <button type="button" role="tab" aria-selected={chatTarget === target} className="conversation-tab" onClick={() => { setChatTarget(target); setChatMessage(''); }}>
+                        <span>{friend.name}</span>{unreadChats[target] > 0 && <i>{unreadChats[target]}</i>}
+                      </button>
+                      <button type="button" className="conversation-tab-close" aria-label={`Fechar conversa com ${friend.name}`} onClick={() => closeFriendChat(target)}>×</button>
+                    </div>;
+                  })}
                 </div>
                 <div className="chat-box" ref={chatBoxOverlayRef} aria-live="polite">
                   {conversationMessages.length === 0 && <p className="chat-empty">A conversa começa aqui.</p>}
@@ -548,7 +537,9 @@ export default function App() {
                 </div>
                 <form className="chat-form" onSubmit={sendChat}>
                   <input ref={chatInputOverlayRef} value={chatMessage} maxLength={2000} onChange={event => setChatMessage(event.target.value)} placeholder="Escreva uma mensagem..." aria-label={`Mensagem para ${chatTitle}`} disabled={!profile} />
-                  <button disabled={!profile || !chatMessage.trim()}>Enviar</button>
+                  <button type="submit" className="chat-send-button" disabled={!profile || !chatMessage.trim()} aria-label="Enviar mensagem" title="Enviar mensagem">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21.7 2.3 14.2 21c-.3.8-1.4.8-1.7 0l-3.2-7.3-7.3-3.2c-.8-.3-.8-1.4 0-1.7l18.7-7.5c.7-.3 1.3.3 1 1ZM9.8 12.2l3.2 1.4 5.1-9.1-9.1 5.1.8 2.6Z" /></svg>
+                  </button>
                 </form>
               </section>
             )}
@@ -595,6 +586,12 @@ export default function App() {
         )}
       </div>
 
+      <GameDetailsModal
+        game={selectedGame}
+        onClose={() => setSelectedGame(null)}
+        onPlay={() => { setActiveGame(selectedGame.id); setSelectedGame(null); }}
+      />
+
       {/* Modal de Login com Google */}
       <GoogleLoginModal
         isOpen={isGoogleModalOpen}
@@ -622,6 +619,12 @@ export default function App() {
         targetPlayer={challengeTarget}
         onClose={() => setChallengeTarget(null)}
         onSendChallenge={sendChallenge}
+      />
+      <FriendInviteModal
+        gameId={inviteGameId}
+        friends={friends}
+        onClose={() => setInviteGameId(null)}
+        onInvite={inviteFriendToGame}
       />
     </>
   );

@@ -254,7 +254,7 @@ function findBestAIMove(board) {
   return bestMove;
 }
 
-export default function ChessGame({ sdk, playerId, connected, active, onExitToHub }) {
+export default function ChessGame({ sdk, playerId, connected, active, onExitToHub, onFindOpponent, onInviteFriend }) {
   const [board, setBoard] = useState(createInitialBoard);
   const [turn, setTurn] = useState('w'); // 'w' (Brancas) ou 'b' (Pretas)
   const [selectedSquare, setSelectedSquare] = useState(null);
@@ -766,6 +766,10 @@ export default function ChessGame({ sdk, playerId, connected, active, onExitToHu
               onClick: startSolo,
             }
           }
+          additionalActions={role === 'host' || role === 'guest' ? [] : [
+            { label: 'Buscar jogador', onClick: () => onFindOpponent?.('chess') },
+            { label: 'Convidar amigo', onClick: () => onInviteFriend?.('chess') },
+          ]}
         />
       )}
     </div>

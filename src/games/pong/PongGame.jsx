@@ -29,7 +29,7 @@ function createGameState() {
   };
 }
 
-export default function PongGame({ sdk, playerId, connected, active, onExitToHub }) {
+export default function PongGame({ sdk, playerId, connected, active, onExitToHub, onFindOpponent, onInviteFriend }) {
   const [role, setRole] = useState(sdk.role);
   const [phase, setPhase] = useState('ready');
   const [countdown, setCountdown] = useState(3);
@@ -429,10 +429,14 @@ export default function PongGame({ sdk, playerId, connected, active, onExitToHub
                 onClick: startMultiplayer,
                 disabled: !multiplayerReady,
               } : {
-                label: 'Iniciar',
+                label: 'Jogar Solo (vs IA)',
                 onClick: startSolo,
               }
             }
+            additionalActions={role === 'host' || role === 'guest' ? [] : [
+              { label: 'Buscar jogador', onClick: () => onFindOpponent?.('pong') },
+              { label: 'Convidar amigo', onClick: () => onInviteFriend?.('pong') },
+            ]}
           />
         )}
       </div>

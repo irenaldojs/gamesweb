@@ -173,7 +173,7 @@ function hasAnyValidMoves(board, player) {
   return false;
 }
 
-export default function DamasGame({ sdk, playerId, connected, active, onExitToHub }) {
+export default function DamasGame({ sdk, playerId, connected, active, onExitToHub, onFindOpponent, onInviteFriend }) {
   const [board, setBoard] = useState(createInitialBoard);
   const [turn, setTurn] = useState('w'); // 'w' = Brancas, 'b' = Pretas
   const [selectedSquare, setSelectedSquare] = useState(null);
@@ -755,6 +755,10 @@ export default function DamasGame({ sdk, playerId, connected, active, onExitToHu
               onClick: startSolo,
             }
           }
+          additionalActions={role === 'host' || role === 'guest' ? [] : [
+            { label: 'Buscar jogador', onClick: () => onFindOpponent?.('damas') },
+            { label: 'Convidar amigo', onClick: () => onInviteFriend?.('damas') },
+          ]}
         />
       )}
     </div>
