@@ -51,6 +51,12 @@ export default function App() {
   const [connectionError, setConnectionError] = useState('');
   const [activeGame, setActiveGame] = useState(null);
   const [gameInfoOpen, setGameInfoOpen] = useState(false);
+  useEffect(() => {
+    if (!gameInfoOpen) return undefined;
+    const handleEscape = event => { if (event.key === 'Escape') setGameInfoOpen(false); };
+    window.addEventListener('keydown', handleEscape);
+    return () => window.removeEventListener('keydown', handleEscape);
+  }, [gameInfoOpen]);
   const [messages, setMessages] = useState([]);
   const [chatMessage, setChatMessage] = useState('');
   const [isChatOverlayOpen, setIsChatOverlayOpen] = useState(false);
@@ -345,25 +351,20 @@ export default function App() {
         <button
           className="brand"
           onClick={exitToHub}
-          aria-label="Voltar para a biblioteca"
+          aria-label={activeGame ? 'Voltar para a biblioteca' : 'GameHub, página inicial'}
+          title={activeGame ? 'Voltar para a biblioteca' : 'GameHub'}
         >
-          <span className="brand-mark">GH</span> GameHub
+          <span className="brand-mark"><span className="brand-logo">GH</span><span className="brand-back" aria-hidden="true">←</span></span><span className="brand-title">GameHub</span>
         </button>
         <div className="topbar-meta">
           <span className={`online-dot ${profile ? '' : 'offline'}`} />
           <span>{profile ? 'Servidor online (SQLite)' : connectionError || 'Conectando...'}</span>
         </div>
         <div className="topbar-actions">
-          {activeGame === 'buraco' && <button type="button" className="nav-button" aria-expanded={gameInfoOpen} aria-controls="buraco-info" onClick={() => setGameInfoOpen(open => !open)}>ⓘ Informações</button>}
+          {['buraco', 'chess', 'damas'].includes(activeGame) && <button type="button" className="nav-button game-info-button" aria-label="Informações da partida" title="Informações da partida" aria-expanded={gameInfoOpen} aria-controls={`${activeGame}-info`} onClick={() => setGameInfoOpen(open => !open)}><span className="game-info-icon" aria-hidden="true">i</span><span className="game-info-label">Informações</span></button>}
           <button type="button" ref={profileTriggerRef} className="topbar-profile-button" aria-label="Abrir opções do usuário" aria-haspopup="dialog" aria-controls="user-panel" aria-expanded={isUserPanelOpen} onClick={() => { setIsUserPanelOpen(value => { const nextOpen = !value; setIsChatOverlayOpen(nextOpen && activeTab === 'chat'); return nextOpen; }); }} title="Opções do usuário">
             {(profile?.avatar_url || currentUser.avatarUrl) ? <img src={profile?.avatar_url || currentUser.avatarUrl} alt="" /> : <span aria-hidden="true">{(profile?.name || currentUser.name || 'P')[0].toUpperCase()}</span>}
           </button>
-          {activeGame && (<button
-              className="nav-button"
-              onClick={exitToHub}
-            >
-              ← Biblioteca
-            </button>)}
         </div>
       </header>
 
@@ -387,7 +388,7 @@ export default function App() {
         </div>
       )}
 
-      <div className={`app-shell${activeGame ? ' ingame-mode' : ''}${activeGame === 'buraco' ? ' buraco-mode' : ''}`}>
+      <div className={`app-shell${activeGame ? ' ingame-mode' : ''}${activeGame === 'buraco' ? ' buraco-mode' : ''}${['chess', 'damas'].includes(activeGame) ? ' board-mode' : ''}`}>
         <main className="main-content">
           <section className={activeGame ? 'view hidden' : 'view'} aria-hidden={Boolean(activeGame)}>
             <div className="game-list">

@@ -341,3 +341,21 @@ body { background:#101713; color:var(--ink); }
 .game-details-art { background-color:#10271c; }
 .badge { background:#34432b; color:#e0f59a; }
 .user-panel-backdrop { background:rgba(0,0,0,.48); }
+
+/* Navegação compacta e consistente no topo. */
+.brand { flex: 0 0 auto; white-space: nowrap; }
+.brand-back { display: none; font: 600 1.25rem/1 sans-serif; }
+.topbar-ingame .brand-logo { display: none; }
+.topbar-ingame .brand-back { display: block; }
+.topbar-actions { flex: 0 0 auto; }
+.game-info-button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 40px; white-space: nowrap; }
+.game-info-icon { display: grid; place-items: center; width: 18px; height: 18px; border: 1.5px solid currentColor; border-radius: 50%; font: 700 12px/1 sans-serif; }
+.game-info-button:hover, .game-info-button[aria-expanded="true"] { background: color-mix(in srgb, var(--green) 18%, var(--surface)); border-color: var(--green); }
+@media (max-width: 520px) {
+  .topbar { gap: 12px; }
+  .brand-title, .game-info-label { display: none; }
+  .brand-mark { width: 40px; height: 40px; }
+  .topbar-meta { flex: 1 1 auto; justify-content: center; min-width: 0; }
+  .topbar-actions { gap: 8px; }
+  .game-info-button { width: 40px; height: 40px; padding: 0; border-radius: 9px; }
+}

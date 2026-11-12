@@ -173,7 +173,7 @@ function hasAnyValidMoves(board, player) {
   return false;
 }
 
-export default function DamasGame({ sdk, playerId, connected, active, onExitToHub, onFindOpponent, onInviteFriend }) {
+export default function DamasGame({ sdk, playerId, connected, active, onExitToHub, onFindOpponent, onInviteFriend, gameInfoOpen, onCloseGameInfo }) {
   const [board, setBoard] = useState(createInitialBoard);
   const [turn, setTurn] = useState('w'); // 'w' = Brancas, 'b' = Pretas
   const [selectedSquare, setSelectedSquare] = useState(null);
@@ -628,7 +628,9 @@ export default function DamasGame({ sdk, playerId, connected, active, onExitToHu
         </div>
 
         {/* Painel lateral de status */}
-        <div className="damas-info-panel">
+        {gameInfoOpen && <div className="board-info-overlay" onClick={onCloseGameInfo}>
+        <div id="damas-info" className="damas-info-panel" role="dialog" aria-modal="true" aria-label="Informações da partida" onClick={event => event.stopPropagation()}>
+          <button type="button" className="board-info-close" onClick={onCloseGameInfo} aria-label="Fechar informações">×</button>
           <div className="damas-status-card">
             <div className="panel-heading">Turno Atual</div>
             <div className="turn-indicator">
@@ -699,6 +701,7 @@ export default function DamasGame({ sdk, playerId, connected, active, onExitToHu
             </div>
           )}
         </div>
+        </div>}
       </div>
 
       {/* Modais Padrão do Hub: Oponente Saiu / Fim de Jogo / Lobby */}

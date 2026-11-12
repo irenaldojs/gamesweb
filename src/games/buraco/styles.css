@@ -541,3 +541,17 @@
   .buraco-view .bur-actions { position: static; width: auto; flex-direction: row; flex-wrap: wrap; justify-content: flex-end; margin-top: 10px; }
   .buraco-view .bur-actions button { width: auto; flex: 1 1 auto; min-height: 36px; padding: 6px 9px; }
 }
+
+.buraco-view .bur-board { flex: 1; grid-template-rows: minmax(150px, 1fr) auto minmax(150px, 1fr); }
+.buraco-view .bur-melds-zone.theirs { padding-right: 10px; }
+.buraco-view .bur-zone-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 40px; }
+.buraco-view .bur-team-avatars { display: flex; align-items: center; gap: 9px; padding-right: 4px; }
+.buraco-view .bur-seat.active { outline: 2px solid var(--seat); outline-offset: 2px; }
+.buraco-view .bur-meld-list { margin-top: 8px; }
+
+@media (min-width: 861px) {
+  .buraco-view .bur-table { min-height: 0; height: calc(100dvh - 100px); --hcw: clamp(42px, 8vh, 66px); --mcw: clamp(32px, 6vh, 48px); --pcw: clamp(36px, 6.5vh, 52px); }
+  .buraco-view .bur-board { grid-template-rows: minmax(100px, 1fr) auto minmax(100px, 1fr); }
+  .buraco-view .bur-melds-zone { min-height: 100px; }
+  .buraco-view .bur-hand { gap: 4px 0; padding-top: 18px; }
+}

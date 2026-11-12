@@ -254,7 +254,7 @@ function findBestAIMove(board) {
   return bestMove;
 }
 
-export default function ChessGame({ sdk, playerId, connected, active, onExitToHub, onFindOpponent, onInviteFriend }) {
+export default function ChessGame({ sdk, playerId, connected, active, onExitToHub, onFindOpponent, onInviteFriend, gameInfoOpen, onCloseGameInfo }) {
   const [board, setBoard] = useState(createInitialBoard);
   const [turn, setTurn] = useState('w'); // 'w' (Brancas) ou 'b' (Pretas)
   const [selectedSquare, setSelectedSquare] = useState(null);
@@ -626,7 +626,9 @@ export default function ChessGame({ sdk, playerId, connected, active, onExitToHu
         </div>
 
         {/* Painel lateral de status e informações */}
-        <div className="chess-info-panel">
+        {gameInfoOpen && <div className="board-info-overlay" onClick={onCloseGameInfo}>
+        <div id="chess-info" className="chess-info-panel" role="dialog" aria-modal="true" aria-label="Informações da partida" onClick={event => event.stopPropagation()}>
+          <button type="button" className="board-info-close" onClick={onCloseGameInfo} aria-label="Fechar informações">×</button>
           <div className="chess-status-card">
             <div className="panel-heading">Turno Atual</div>
             <div className="turn-indicator">
@@ -699,6 +701,7 @@ export default function ChessGame({ sdk, playerId, connected, active, onExitToHu
             </div>
           )}
         </div>
+        </div>}
       </div>
 
       {/* Modais Padrão do Hub: Oponente Saiu / Fim de Jogo / Lobby */}

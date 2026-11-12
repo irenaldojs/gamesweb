@@ -131,3 +131,50 @@
   .board-captured-ghost, .board-promotion-before, .board-promotion-halo, .board-promotion-label { display: none; }
   .board-promotion-after { opacity: 1; }
 }
+
+@media (min-width: 861px) {
+  .board-game :is(.chess-board, .damas-board) { width: min(100%, max(240px, calc(100dvh - 330px))); }
+  .board-game :is(.chess-board-wrapper, .damas-board-wrapper) { padding: 12px 20px; }
+  .board-game :is(.chess-board, .damas-board) { margin: 8px auto; }
+}
+
+@media (min-width: 861px) {
+  .board-game :is(.chess-board-wrapper, .damas-board-wrapper) {
+    display: grid;
+    grid-template-columns: minmax(110px, 1fr) minmax(0, min(calc(100dvh - 180px), calc(100% - 244px))) minmax(110px, 1fr);
+    grid-template-rows: 1fr auto;
+    align-items: center;
+    gap: 12px;
+  }
+  .board-game :is(.chess-board-wrapper, .damas-board-wrapper) > .board-seat:first-child { grid-column: 3; grid-row: 1; }
+  .board-game :is(.chess-board-wrapper, .damas-board-wrapper) > .board-seat:nth-of-type(3) { grid-column: 1; grid-row: 1; }
+  .board-game :is(.chess-board, .damas-board) { grid-column: 2; grid-row: 1; width: min(100%, max(240px, calc(100dvh - 180px))); margin: 0; }
+  .board-game .board-table-footer { grid-column: 1 / -1; grid-row: 2; margin-top: 0; }
+  .board-game .board-seat { flex-wrap: wrap; }
+}
+
+.board-game :is(.chess-layout, .damas-layout) { grid-template-columns: minmax(0, 1fr); }
+.board-info-overlay { position: fixed; inset: 0; z-index: 1200; display: flex; justify-content: flex-end; background: rgba(0, 0, 0, .55); }
+.board-game .board-info-overlay :is(.chess-info-panel, .damas-info-panel) { position: relative; width: min(360px, 100%); height: 100%; overflow-y: auto; padding: 58px 18px 20px; background: var(--surface); box-shadow: -12px 0 36px #0006; }
+.board-info-close { position: absolute; top: 12px; right: 16px; width: 36px; height: 36px; border: 1px solid var(--line); border-radius: 50%; background: transparent; color: var(--ink); font-size: 24px; line-height: 1; cursor: pointer; }
+.board-info-close:hover { border-color: var(--green); }
+
+@media (max-width: 860px) {
+  .app-shell.board-mode { padding: 0; }
+  .board-game :is(.chess-board-wrapper, .damas-board-wrapper) { padding: 0; border: 0; border-radius: 0; box-shadow: none; }
+  .board-game :is(.chess-board-wrapper, .damas-board-wrapper)::before { display: none; }
+  .board-game :is(.chess-board, .damas-board) { margin: 0 auto; }
+}
+
+@media (max-width: 860px) {
+  body:has(.app-shell.board-mode) { overflow: hidden; }
+  .board-game .board-seat { width: 80%; align-self: center; }
+  .app-shell.board-mode.board-mode { height: calc(100dvh - 56px); min-height: 0; padding: 3px; }
+  .board-mode .main-content, .board-mode .view:not(.hidden), .board-mode .board-game, .board-mode :is(.chess-layout, .damas-layout) { height: 100%; min-height: 0; }
+  .board-game :is(.chess-board-wrapper, .damas-board-wrapper) { height: 100%; display: flex; flex-direction: column; justify-content: space-between; }
+  .board-game :is(.chess-board, .damas-board) { flex: none; width: min(100%, max(0px, calc(100dvh - 230px))); }
+  .board-game .board-table-footer { margin: 0; padding: 4px 8px; }
+}
+@media (max-width: 520px) {
+  .app-shell.board-mode.board-mode { height: calc(100dvh - 62px); }
+}

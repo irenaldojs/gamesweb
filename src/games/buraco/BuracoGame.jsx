@@ -479,7 +479,6 @@ export default function BuracoGame({ sdk, playerId, connected, active, onExitToH
 
   /* ------------------------------- Renderização ------------------------------- */
 
-  const opponents = game ? Array.from({ length: game.n - 1 }, (_, i) => (viewSeat + 1 + i) % game.n) : [];
   const result = game?.result;
   const teamLabel = (t) => {
     if (!game) return '';
@@ -493,15 +492,11 @@ export default function BuracoGame({ sdk, playerId, connected, active, onExitToH
   function renderSeat(seat) {
     const pl = game.players[seat];
     const isTurn = playing && game.turn === seat;
-    const partner = game.n === 4 && teamOf(game, seat) === myTeam;
-    const L = game.last;
-    const labels = { draw: 'Comprou', takePile: 'Pegou o lixo!', meld: 'Baixou jogo', extend: 'Encaixou', discard: 'Descartou' };
-    const bubble = L.seat === seat && labels[L.type] ? L : null;
+    const partner = seat !== viewSeat && teamOf(game, seat) === myTeam;
     return (
-      <div key={seat} className={`bur-seat ${isTurn ? 'active' : ''}`} data-seat={seat} style={{ '--seat': pl.color }} title={`${pl.name} · ${partner ? 'Parceiro' : pl.kind === 'bot' ? 'IA' : 'Adversário'} · ${game.hands[seat].length} cartas`} aria-label={`${pl.name}, ${game.hands[seat].length} cartas`}>
+      <div key={seat} className={`bur-seat ${isTurn ? 'active' : ''}`} data-seat={seat} style={{ '--seat': pl.color }} title={`${pl.name} · ${seat === viewSeat ? 'Você' : partner ? 'Parceiro' : pl.kind === 'bot' ? 'IA' : 'Adversário'} · ${game.hands[seat].length} cartas`} aria-label={`${pl.name}, ${game.hands[seat].length} cartas${isTurn ? ', jogando agora' : ''}`}>
         <span className="bur-avatar" style={{ background: pl.color }}>{pl.avatar}</span>
         <span className="bur-count">{game.hands[seat].length}</span>
-        {bubble && <span key={bubble.seq} className="bur-bubble">{labels[bubble.type]}</span>}
       </div>
     );
   }
@@ -540,11 +535,6 @@ export default function BuracoGame({ sdk, playerId, connected, active, onExitToH
       <div className="bur-layout">
         <div className="bur-table-wrap">
           <div className="bur-table" ref={tableRef}>
-            {/* Oponentes */}
-            <div className="bur-opponents">
-              {game ? opponents.map(renderSeat) : <div className="bur-empty-title">Mesa de Buraco</div>}
-            </div>
-
             {/* Centro: pilhas + jogos */}
             <div className="bur-board">
               {game ? (
@@ -615,14 +605,14 @@ export default function BuracoGame({ sdk, playerId, connected, active, onExitToH
 
                   <div className="bur-melds-col">
                     <div className="bur-melds-zone theirs" style={{ '--seat': TEAM_COLORS[1 - myTeam] }}>
-                      <span className="bur-zone-label">Jogos deles</span>
+                      <div className="bur-zone-head"><span className="bur-zone-label">Jogos deles</span><div className="bur-team-avatars">{game.players.map((_, seat) => teamOf(game, seat) !== myTeam && renderSeat(seat))}</div></div>
                       <div className="bur-meld-list">
                         {oppMelds.length === 0 && <span className="bur-zone-empty">Nenhum jogo baixado</span>}
                         {oppMelds.map((m) => <MeldView key={m.id} meld={m} mine={false} />)}
                       </div>
                     </div>
                     <div className="bur-melds-zone mine" style={{ '--seat': TEAM_COLORS[myTeam] }}>
-                      <span className="bur-zone-label">Nossos jogos</span>
+                      <div className="bur-zone-head"><span className="bur-zone-label">Nossos jogos</span><div className="bur-team-avatars">{game.players.map((_, seat) => teamOf(game, seat) === myTeam && renderSeat(seat))}</div></div>
                       <div className="bur-meld-list">
                         {myMelds.length === 0 && <span className="bur-zone-empty">Baixe sequências do mesmo naipe (mín. 3)</span>}
                         {myMelds.map((m) => (
