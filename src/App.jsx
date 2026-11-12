@@ -1,6 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { HubGameSDK } from './sdk/HubSDK.js';
 import { GAMES_CATALOG } from './games/gamesRegistry.jsx';
+import chessArt from './assets/games/chess.webp';
+import damasArt from './assets/games/damas.webp';
+import dominoArt from './assets/games/domino.webp';
+import buracoArt from './assets/games/buraco.webp';
+
+const catalogArt = { chess: chessArt, damas: damasArt, domino: dominoArt, buraco: buracoArt, tranca: buracoArt };
 import GoogleLoginModal from './components/GoogleLoginModal.jsx';
 import InviteToast from './components/InviteToast.jsx';
 import MatchmakingModal from './components/MatchmakingModal.jsx';
@@ -384,7 +390,7 @@ export default function App() {
             <div className="game-list">
               {GAMES_CATALOG.map((game) => (
                 <button key={game.id} type="button" className="game-card" onClick={() => setSelectedGame(game)} aria-label={`Ver detalhes de ${game.title}`}>
-                  <div className="game-art" aria-hidden="true">{game.renderArt()}</div>
+                  <div className="game-art" aria-hidden="true"><img className="game-card-image" src={catalogArt[game.id]} alt="" /></div>
                   <span className="game-card-title">{game.title}</span>
                 </button>
               ))}
@@ -588,6 +594,7 @@ export default function App() {
 
       <GameDetailsModal
         game={selectedGame}
+        artwork={catalogArt[selectedGame?.id]}
         onClose={() => setSelectedGame(null)}
         onPlay={() => { setActiveGame(selectedGame.id); setSelectedGame(null); }}
       />

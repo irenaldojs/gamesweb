@@ -3,6 +3,7 @@ import ChessGame from './chess/ChessGame.jsx';
 import DamasGame from './damas/DamasGame.jsx';
 import DominoGame from './domino/DominoGame.jsx';
 import { DominoArt } from './domino/DominoTile.jsx';
+import TrancaGame from './tranca/TrancaGame.jsx';
 import BuracoGame from './buraco/BuracoGame.jsx';
 import { BuracoArt } from './buraco/BuracoCard.jsx';
 
@@ -103,5 +104,13 @@ export const GAMES_CATALOG = [
     meta: 'Cartas · individual ou em duplas',
     renderArt: () => <BuracoArt />,
     component: BuracoGame,
+  },
+  {
+    id: 'tranca', number: '006', title: 'Tranca', category: 'Clássico',
+    players: '1–4 jogadores',
+    description: 'Forme sequências e trincas, use os três para mudar a partida e faça canastras.',
+    meta: 'Cartas · individual ou em duplas',
+    renderArt: () => <BuracoArt />,
+    component: TrancaGame,
   },
 ];

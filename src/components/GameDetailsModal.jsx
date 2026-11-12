@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 
-export default function GameDetailsModal({ game, onClose, onPlay }) {
+export default function GameDetailsModal({ game, artwork, onClose, onPlay }) {
   useEffect(() => {
     if (!game) return undefined;
     const handleKeyDown = event => {
@@ -16,7 +16,9 @@ export default function GameDetailsModal({ game, onClose, onPlay }) {
     <div className="game-details-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) onClose(); }}>
       <section className="game-details-modal" role="dialog" aria-modal="true" aria-labelledby="game-details-title">
         <button type="button" className="game-details-close" onClick={onClose} aria-label="Fechar detalhes">×</button>
-        <div className="game-details-art" aria-hidden="true">{game.renderArt()}</div>
+        <div className="game-details-art" aria-hidden="true">
+          {artwork ? <img src={artwork} alt="" /> : game.renderArt()}
+        </div>
         <div className="game-details-content">
           <span className="badge">{game.category}</span>
           <h2 id="game-details-title">{game.title}</h2>
