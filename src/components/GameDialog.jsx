@@ -12,6 +12,7 @@ export default function GameDialog({
   primaryAction,
   secondaryAction,
   additionalActions = [],
+  onBackToHub,
   children,
 }) {
   const hasActions = Boolean(primaryAction || secondaryAction || additionalActions.length);
@@ -56,6 +57,13 @@ export default function GameDialog({
         )}
 
         {status && <div className="room-status" role="status">{status}</div>}
+        {onBackToHub && (
+          <div className="game-dialog-back">
+            <button type="button" className="game-back-button" onClick={onBackToHub}>
+              <span aria-hidden="true">←</span> Voltar ao Hub
+            </button>
+          </div>
+        )}
       </section>
     </div>
   );

@@ -766,6 +766,7 @@ export default function DominoGame({ sdk, playerId, connected, active, onExitToH
               : 'Monte a mesa: jogue contra a IA, com amigos no mesmo aparelho ou online.'
           }
           status={status}
+          onBackToHub={onExitToHub}
         >
           {!lobbyWaiting && (
             <div className="dom-setup">

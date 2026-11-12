@@ -3,6 +3,8 @@ import ChessGame from './chess/ChessGame.jsx';
 import DamasGame from './damas/DamasGame.jsx';
 import DominoGame from './domino/DominoGame.jsx';
 import { DominoArt } from './domino/DominoTile.jsx';
+import BuracoGame from './buraco/BuracoGame.jsx';
+import { BuracoArt } from './buraco/BuracoCard.jsx';
 
 export const GAMES_CATALOG = [
   {
@@ -90,5 +92,16 @@ export const GAMES_CATALOG = [
     meta: 'Duplo-seis · até 4 na mesa',
     renderArt: () => <DominoArt />,
     component: DominoGame,
+  },
+  {
+    id: 'buraco',
+    number: '005',
+    title: 'Buraco',
+    category: 'Clássico',
+    players: '1–4 jogadores',
+    description: 'Forme sequências e canastras em partidas contra a IA, no mesmo aparelho ou online.',
+    meta: 'Cartas · individual ou em duplas',
+    renderArt: () => <BuracoArt />,
+    component: BuracoGame,
   },
 ];

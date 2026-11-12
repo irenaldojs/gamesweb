@@ -423,6 +423,7 @@ export default function PongGame({ sdk, playerId, connected, active, onExitToHub
             title={role === 'host' || role === 'guest' ? 'Partida pronta?' : 'Antes de começar'}
             message={role === 'host' || role === 'guest' ? 'A contagem começa quando alguém iniciar.' : 'Prepare-se para entrar na quadra.'}
             status={status}
+            onBackToHub={onExitToHub}
             primaryAction={
               role === 'host' || role === 'guest' ? {
                 label: 'Iniciar',

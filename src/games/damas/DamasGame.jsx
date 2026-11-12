@@ -745,6 +745,7 @@ export default function DamasGame({ sdk, playerId, connected, active, onExitToHu
               : 'Escolha seu modo de jogo para entrar na mesa de Damas.'
           }
           status={status}
+          onBackToHub={onExitToHub}
           primaryAction={
             role === 'host' || role === 'guest' ? {
               label: 'Iniciar',

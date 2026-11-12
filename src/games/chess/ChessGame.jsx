@@ -756,6 +756,7 @@ export default function ChessGame({ sdk, playerId, connected, active, onExitToHu
               : 'Escolha seu modo de jogo para entrar no tabuleiro.'
           }
           status={status}
+          onBackToHub={onExitToHub}
           primaryAction={
             role === 'host' || role === 'guest' ? {
               label: 'Iniciar',
