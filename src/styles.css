@@ -887,3 +887,62 @@ button:disabled, input:disabled { cursor: not-allowed; opacity: 0.55; }
 .ingame-chat-drawer .chat-box { min-height: 0; }
 .ingame-chat-drawer .chat-form { flex-shrink: 0; }
 .friend-action-group { flex-wrap: wrap; }
+
+/* A biblioteca usa toda a largura; comunidade e conta ficam no avatar. */
+.app-shell { grid-template-columns: minmax(0, 1fr); justify-content: stretch; }
+.app-shell.ingame-mode { grid-template-columns: minmax(0, 1fr); }
+.game-list { grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 28px; }
+.user-panel-backdrop {
+  position: fixed;
+  z-index: 1100;
+  inset: 56px 0 0;
+  background: rgba(16, 31, 24, 0.12);
+  animation: modal-appear 140ms ease-out;
+}
+.user-panel {
+  position: absolute;
+  top: 12px;
+  right: max(16px, 5vw);
+  width: min(440px, calc(100vw - 32px));
+  height: min(690px, calc(100dvh - 82px));
+  min-height: 320px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid #dce5d8;
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: 0 20px 55px rgba(16, 57, 44, 0.24);
+  animation: chat-slide-in 180ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.user-panel-account { padding: 16px; border-bottom: 1px solid var(--line); background: #fbfcfa; }
+.user-panel-identity { display: flex; align-items: center; gap: 11px; }
+.user-panel-identity > div:last-child { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.user-panel-identity strong { overflow: hidden; color: var(--ink); font-size: .92rem; text-overflow: ellipsis; white-space: nowrap; }
+.user-panel-identity span { color: var(--muted); font-size: .76rem; }
+.user-panel-account-actions { display: flex; gap: 8px; margin-top: 13px; }
+.user-panel-account-actions button { flex: 1; min-height: 36px; padding: 8px 10px; font-size: .78rem; }
+.user-logout-button { border: 1px solid #eadbd7; border-radius: 6px; background: #fff9f7; color: #98513d; font-weight: 600; cursor: pointer; }
+.user-logout-button:hover { background: #fff0eb; }
+.user-panel-tabs { grid-template-columns: repeat(3, minmax(0, 1fr)); flex-shrink: 0; }
+.user-panel-tabs .sidebar-tab-btn { min-width: 0; white-space: nowrap; }
+.user-panel-tabs .chat-badge { margin-left: 1px; }
+.user-panel > .friends-panel, .user-panel > .ranking-panel { min-height: 0; flex: 1; overflow: auto; }
+.user-panel > .friends-panel .friends-list { max-height: none; }
+.user-panel > .ranking-panel { max-height: none; }
+.user-panel-chat { min-height: 0; flex: 1; display: flex; flex-direction: column; }
+.user-panel-chat .chat-conversation-picker { flex-shrink: 0; }
+.user-panel-chat .chat-box { min-height: 0; flex: 1; }
+.user-panel-chat .chat-form { flex-shrink: 0; }
+.user-panel-chat .chat-form input { margin-top: 0; }
+.topbar-profile-button { position: relative; }
+.topbar-profile-button[aria-expanded="true"] { border-color: var(--green); box-shadow: 0 0 0 3px #164b3a15; }
+@media (max-width: 860px) {
+  .game-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 560px) {
+  .game-list { grid-template-columns: minmax(0, 1fr); gap: 16px; margin-top: 18px; }
+  .user-panel-backdrop { inset-block-start: 62px; }
+  .user-panel { top: 8px; right: 8px; width: calc(100vw - 16px); height: min(690px, calc(100dvh - 78px)); }
+  .app-shell { padding-top: 16px; }
+}

@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { HubGameSDK } from './sdk/HubSDK.js';
 import { GAMES_CATALOG } from './games/gamesRegistry.jsx';
-import ProfileModal from './components/ProfileModal.jsx';
 import GoogleLoginModal from './components/GoogleLoginModal.jsx';
 import InviteToast from './components/InviteToast.jsx';
 import MatchmakingModal from './components/MatchmakingModal.jsx';
@@ -54,7 +53,7 @@ export default function App() {
 
 
   // Abas e Dados da Comunidade (SQLite)
-  const [activeTab, setActiveTab] = useState('friends'); // 'friends' | 'ranking'
+  const [activeTab, setActiveTab] = useState('friends'); // 'friends' | 'chat' | 'ranking'
   const [friends, setFriends] = useState([]);
   const [ranks, setRanks] = useState([]);
   const [friendInput, setFriendInput] = useState('');
@@ -63,7 +62,7 @@ export default function App() {
   const chatTitle = chatTarget === 'global' ? 'Global do servidor' : chatTarget.startsWith('room:') ? 'Adversário da partida' : selectedFriend?.name || 'Amigo';
 
   // Modais e Interações
-  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isUserPanelOpen, setIsUserPanelOpen] = useState(false);
   const [isGoogleModalOpen, setIsGoogleModalOpen] = useState(false);
   const [incomingInvite, setIncomingInvite] = useState(null);
   const [matchmakingGameId, setMatchmakingGameId] = useState(null);
@@ -71,7 +70,6 @@ export default function App() {
   const [bannerAlert, setBannerAlert] = useState('');
 
   const profileTriggerRef = useRef(null);
-  const chatTriggerRef = useRef(null);
   const chatBoxOverlayRef = useRef(null);
   const chatInputOverlayRef = useRef(null);
   const activeGameRef = useRef(activeGame);
@@ -202,21 +200,16 @@ export default function App() {
   // Teclas de atalho para chat in-game
   useEffect(() => {
     const handleKeyDown = (e) => {
-      const isInput = e.target.closest('input, textarea, select, [contenteditable="true"]');
-      if (e.key === 'Escape' && isChatOverlayOpenRef.current) {
+      if (e.key === 'Escape' && isUserPanelOpen) {
         e.preventDefault();
+        setIsUserPanelOpen(false);
         setIsChatOverlayOpen(false);
-        chatTriggerRef.current?.focus();
-        return;
-      }
-      if (!isInput && !e.target.closest('button, a, [contenteditable="true"]') && (e.key === 't' || e.key === 'T' || e.key === 'Enter')) {
-        e.preventDefault();
-        setIsChatOverlayOpen((prev) => !prev);
+        profileTriggerRef.current?.focus();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [activeGame]);
+  }, [activeGame, isUserPanelOpen]);
 
   function showTemporaryAlert(msg) {
     setBannerAlert(msg);
@@ -238,7 +231,8 @@ export default function App() {
       setProfile(null);
       setCurrentUser(guest);
     }
-    setIsProfileOpen(false);
+    setIsUserPanelOpen(false);
+    setIsChatOverlayOpen(false);
     profileTriggerRef.current?.focus();
   }
 
@@ -328,25 +322,9 @@ export default function App() {
           <span>{profile ? 'Servidor online (SQLite)' : connectionError || 'Conectando...'}</span>
         </div>
         <div className="topbar-actions">
-          <button type="button" ref={profileTriggerRef} className="topbar-profile-button" aria-label="Seu perfil" aria-haspopup="dialog" aria-expanded={isProfileOpen} onClick={() => { setIsChatOverlayOpen(false); setIsProfileOpen(true); }} title="Seu perfil">
+          <button type="button" ref={profileTriggerRef} className="topbar-profile-button" aria-label="Abrir opções do usuário" aria-haspopup="dialog" aria-controls="user-panel" aria-expanded={isUserPanelOpen} onClick={() => { setIsUserPanelOpen(value => { const nextOpen = !value; setIsChatOverlayOpen(nextOpen && activeTab === 'chat'); return nextOpen; }); }} title="Opções do usuário">
             {(profile?.avatar_url || currentUser.avatarUrl) ? <img src={profile?.avatar_url || currentUser.avatarUrl} alt="" /> : <span aria-hidden="true">{(profile?.name || currentUser.name || 'P')[0].toUpperCase()}</span>}
           </button>
-            <button
-              type="button"
-              ref={chatTriggerRef}
-              className={`chat-toggle-button ${isChatOverlayOpen ? 'active' : ''}`}
-              aria-label={`Conversas${unreadCount > 0 ? `, ${unreadCount} mensagens não lidas` : ''}`}
-              aria-expanded={isChatOverlayOpen}
-              aria-controls="ingame-chat"
-              aria-haspopup="dialog"
-              onClick={() => setIsChatOverlayOpen((prev) => !prev)}
-              title="Abrir/fechar conversas (Atalho: T ou Enter)"
-            >
-              <span aria-hidden="true">💬</span>
-              {unreadCount > 0 && !isChatOverlayOpen && (
-                <span className="chat-badge">{unreadCount > 99 ? '99+' : unreadCount}</span>
-              )}
-            </button>
           {activeGame && (<button
               className="nav-button"
               onClick={exitToHub}
@@ -451,22 +429,40 @@ export default function App() {
           })}
         </main>
 
-        {!activeGame && (
-          <aside className="sidebar">
-            {/* Abas da Sidebar: Chat, Amigos e Ranking */}
-            <div className="sidebar-tabs">
+        {isUserPanelOpen && (
+          <div className="user-panel-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) { setIsUserPanelOpen(false); setIsChatOverlayOpen(false); } }}>
+          <aside className="user-panel" id="user-panel" role="dialog" aria-modal="true" aria-label="Opções do usuário">
+            <div className="user-panel-account">
+              <div className="user-panel-identity">
+                <div className="user-avatar-circle">{(profile?.avatar_url || profile?.avatarUrl || currentUser.avatarUrl) ? <img src={profile?.avatar_url || profile?.avatarUrl || currentUser.avatarUrl} alt="" /> : <span>{(profile?.name || currentUser.name || 'P')[0].toUpperCase()}</span>}</div>
+                <div><strong>{profile?.name || currentUser.name}</strong><span>{currentUser.googleId ? 'Conta conectada' : 'Jogando como visitante'}</span></div>
+              </div>
+              <div className="user-panel-account-actions">
+                {!currentUser.googleId ? (
+                  <button type="button" className="primary-button" onClick={() => { setIsUserPanelOpen(false); setIsChatOverlayOpen(false); setIsGoogleModalOpen(true); }}>Entrar na conta</button>
+                ) : <>
+                  <button type="button" className="secondary-button" onClick={() => { setIsUserPanelOpen(false); setIsChatOverlayOpen(false); setIsGoogleModalOpen(true); }}>Trocar conta</button>
+                  <button type="button" className="user-logout-button" onClick={playAnonymously}>Sair da conta</button>
+                </>}
+              </div>
+            </div>
+            <div className="sidebar-tabs user-panel-tabs">
               <button
                 type="button"
                 className={`sidebar-tab-btn ${activeTab === 'friends' ? 'active' : ''}`}
-                onClick={() => setActiveTab('friends')}
+                onClick={() => { setActiveTab('friends'); setIsChatOverlayOpen(false); }}
               >
                 👥 Amigos ({friends.length})
+              </button>
+              <button type="button" className={`sidebar-tab-btn ${activeTab === 'chat' ? 'active' : ''}`} onClick={() => { setActiveTab('chat'); setChatTarget('global'); setIsChatOverlayOpen(true); }}>
+                💬 Chat {unreadCount > 0 && <span className="chat-badge">{unreadCount > 99 ? '99+' : unreadCount}</span>}
               </button>
               <button
                 type="button"
                 className={`sidebar-tab-btn ${activeTab === 'ranking' ? 'active' : ''}`}
                 onClick={() => {
                   setActiveTab('ranking');
+                  setIsChatOverlayOpen(false);
                   sdk.getRankings();
                 }}
               >
@@ -504,7 +500,7 @@ export default function App() {
                         </div>
                       </div>
                       <div className="friend-action-group">
-                        <button type="button" className="friend-challenge-btn" onClick={() => { setChatTarget(`friend:${f.id}`); setChatMessage(''); setIsChatOverlayOpen(true); }}>💬 Conversar</button>
+                        <button type="button" className="friend-challenge-btn" onClick={() => { setChatTarget(`friend:${f.id}`); setChatMessage(''); setActiveTab('chat'); setIsChatOverlayOpen(true); }}>💬 Conversar</button>
                         <button
                           type="button"
                           className="friend-challenge-btn"
@@ -525,6 +521,36 @@ export default function App() {
                   ))}
                 </div>
               </div>
+            )}
+
+            {activeTab === 'chat' && (
+              <section className="user-panel-chat">
+                <div className="chat-conversation-picker">
+                  <label htmlFor="chat-recipient">Conversar com</label>
+                  <select id="chat-recipient" value={chatTarget} onChange={event => { setChatTarget(event.target.value); setChatMessage(''); }}>
+                    <option value="global">Chat global{unreadChats.global ? ` (${unreadChats.global})` : ''}</option>
+                    <option value={currentRoom ? `room:${currentRoom}` : 'room:unavailable'} disabled={!currentRoom}>Adversário da partida{!currentRoom ? ' · indisponível' : ''}</option>
+                    <optgroup label="Amigos">
+                      {friends.length === 0 && <option disabled>Nenhum amigo adicionado</option>}
+                      {friends.map(friend => <option key={friend.id} value={`friend:${friend.id}`}>{friend.name}</option>)}
+                    </optgroup>
+                  </select>
+                </div>
+                <div className="chat-box" ref={chatBoxOverlayRef} aria-live="polite">
+                  {conversationMessages.length === 0 && <p className="chat-empty">A conversa começa aqui.</p>}
+                  {conversationMessages.map((message, index) => (
+                    <div className="chat-msg" key={`${message.timestamp}-${message.senderId}-${index}`}>
+                      <div className="chat-msg-header"><strong>{message.senderName}</strong>
+                        {chatTarget === 'global' && message.senderId !== (profile?.id || currentUser.id) && <button type="button" className="chat-challenge-btn" onClick={() => openChallenge(message)}>⚔️ Desafiar</button>}
+                      </div><span>{message.message}</span>
+                    </div>
+                  ))}
+                </div>
+                <form className="chat-form" onSubmit={sendChat}>
+                  <input ref={chatInputOverlayRef} value={chatMessage} maxLength={2000} onChange={event => setChatMessage(event.target.value)} placeholder="Escreva uma mensagem..." aria-label={`Mensagem para ${chatTitle}`} disabled={!profile} />
+                  <button disabled={!profile || !chatMessage.trim()}>Enviar</button>
+                </form>
+              </section>
             )}
 
             {/* CONTEÚDO DA ABA RANKING (SQLite Leaderboard) */}
@@ -565,70 +591,10 @@ export default function App() {
 
 
           </aside>
+          </div>
         )}
       </div>
 
-      {/* Chat flutuante sobreposto in-game */}
-      {isChatOverlayOpen && (
-        <aside id="ingame-chat" className="ingame-chat-drawer" role="dialog" aria-label="Conversas">
-          <div className="ingame-chat-header">
-            <div className="chat-heading">
-              <span>Conversas</span>
-              <span className="chat-live">AO VIVO</span>
-            </div>
-            <div className="ingame-chat-header-actions">
-              <span className="chat-key-hint">ESC</span>
-              <button
-                type="button"
-                className="chat-close-btn"
-                onClick={() => { setIsChatOverlayOpen(false); chatTriggerRef.current?.focus(); }}
-                aria-label="Fechar chat"
-              >
-                ✕
-              </button>
-            </div>
-          </div>
-          <div className="chat-conversation-picker">
-            <label htmlFor="chat-recipient">Conversar com</label>
-            <select id="chat-recipient" value={chatTarget} onChange={event => { setChatTarget(event.target.value); setChatMessage(''); }}>
-              <option value="global">Global do servidor{unreadChats.global ? ` (${unreadChats.global})` : ''}</option>
-              <option value={currentRoom ? `room:${currentRoom}` : 'room:unavailable'} disabled={!currentRoom}>Adversário da partida{!currentRoom ? ' · indisponível' : unreadChats[`room:${currentRoom}`] ? ` (${unreadChats[`room:${currentRoom}`]})` : ''}</option>
-              <optgroup label="Amigos">
-                {friends.length === 0 && <option disabled>Nenhum amigo adicionado</option>}
-                {friends.map(friend => <option key={friend.id} value={`friend:${friend.id}`}>{friend.name}{unreadChats[`friend:${friend.id}`] ? ` (${unreadChats[`friend:${friend.id}`]})` : ''}</option>)}
-              </optgroup>
-            </select>
-            <small>{chatTarget === 'global' ? 'Todos os jogadores conectados podem ler.' : 'Conversa privada, visível apenas para vocês dois.'}</small>
-          </div>
-          <div className="chat-box" ref={chatBoxOverlayRef} aria-live="polite">
-            {conversationMessages.length === 0 && <p className="chat-empty">A conversa começa aqui.</p>}
-            {conversationMessages.map((message, index) => (
-              <div className="chat-msg" key={`${message.timestamp}-${message.senderId}-${index}`}>
-                <div className="chat-msg-header"><strong>{message.senderName}</strong>
-                  {chatTarget === 'global' && message.senderId !== (profile?.id || currentUser.id) && <button type="button" className="chat-challenge-btn" onClick={() => openChallenge(message)}>⚔️ Desafiar</button>}
-                </div><span>{message.message}</span>
-              </div>
-            ))}
-          </div>
-          <form className="chat-form" onSubmit={sendChat}>
-            <input
-              ref={chatInputOverlayRef}
-              value={chatMessage}
-              maxLength={2000}
-              onChange={(event) => setChatMessage(event.target.value)}
-              placeholder="Escreva uma mensagem... (Enter)"
-              aria-label={`Mensagem para ${chatTitle}`}
-              disabled={!profile}
-            />
-            <button disabled={!profile || !chatMessage.trim()}>Enviar</button>
-          </form>
-        </aside>
-      )}
-
-      <ProfileModal isOpen={isProfileOpen} profile={profile || currentUser} isGuest={!currentUser.googleId}
-        onClose={() => { setIsProfileOpen(false); profileTriggerRef.current?.focus(); }}
-        onAnonymous={playAnonymously}
-        onLogin={() => { setIsProfileOpen(false); setIsGoogleModalOpen(true); }} />
       {/* Modal de Login com Google */}
       <GoogleLoginModal
         isOpen={isGoogleModalOpen}
