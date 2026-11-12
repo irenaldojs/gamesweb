@@ -594,3 +594,75 @@
   .dom-stock { flex-direction: row; align-self: flex-end; }
   .dom-stock-stack { width: 38px; }
 }
+
+/* A mesa ocupa toda a largura; os detalhes ficam no painel do cabeçalho. */
+.dom-layout { grid-template-columns: minmax(0, 1fr); }
+.dom-info-panel {
+  position: relative;
+  box-sizing: border-box;
+  width: min(360px, 100%);
+  height: 100%;
+  overflow-y: auto;
+  padding: 58px 18px 20px;
+  background: var(--surface);
+  box-shadow: -12px 0 36px #0006;
+}
+
+@media (max-width: 860px) {
+  body:has(.app-shell.domino-mode) { overflow: hidden; }
+  .app-shell.domino-mode.domino-mode { height: calc(100dvh - 56px); min-height: 0; padding: 3px; box-sizing: border-box; }
+  .domino-mode .main-content, .domino-mode .view:not(.hidden),
+  .domino-mode .dom-view, .domino-mode .dom-layout,
+  .domino-mode .dom-table-wrap, .domino-mode .dom-table { height: 100%; min-height: 0; box-sizing: border-box; }
+  .dom-table { gap: 6px; }
+  .dom-round-chip { align-self: center; padding: 4px 10px; }
+  .dom-opponents { flex: none; flex-wrap: nowrap; min-height: 0; gap: 4px; }
+  .dom-seat { min-width: 0; padding: 5px; }
+  .dom-seat-head { gap: 4px; }
+  .dom-seat-text strong { font-size: 0.72rem; }
+  .dom-seat-text small { display: block; font-size: 0.58rem; }
+  .dom-avatar { width: 26px; height: 26px; font-size: 0.9rem; }
+  .dom-count { min-width: 18px; padding: 2px 4px; font-size: 0.65rem; }
+  .dom-mini-hand { overflow: hidden; margin-top: 3px; }
+  .dom-board-wrap { min-height: 0; overflow: hidden; }
+  .dom-board { flex: none; }
+  .dom-dock { --hu: 26px; flex: none; padding: 6px 8px; }
+  .dom-dock-head { gap: 5px; }
+  .dom-hint { font-size: 0.62rem; }
+  .dom-dock-body { flex-direction: row; align-items: flex-end; gap: 6px; }
+  .dom-hand { min-width: 0; min-height: 0; flex-wrap: nowrap; gap: 6px; overflow-x: auto; padding: 16px 3px 5px; }
+  .dom-hand-tile { flex: none; }
+  .dom-stock { flex-direction: column; align-self: flex-end; gap: 2px; padding: 4px; }
+  .dom-stock-stack { width: 30px; height: 36px; transform: scale(.75); transform-origin: center bottom; }
+  .dom-stock-stack .dom { left: 5px; }
+  .dom-stock-label { font-size: 0.55rem; gap: 3px; }
+  .dom-stock-label b { padding: 1px 4px; }
+  .dom-curtain { text-align: center; padding: 4px; }
+  .dom-curtain p { font-size: 0.85rem; }
+  .dom-curtain small { font-size: 0.68rem; }
+  .dom-curtain .primary-button { margin-top: 0; padding: 6px 12px; }
+}
+@media (max-width: 520px) {
+  .app-shell.domino-mode.domino-mode { height: calc(100dvh - 62px); }
+}
+@media (max-height: 550px) and (max-width: 860px) {
+  .dom-mini-hand { display: none; }
+  .dom-table { gap: 3px; }
+  .dom-dock { --hu: 20px; }
+  .dom-hand { padding-top: 12px; }
+}
+
+/* As peças acompanham a medida calculada para o tabuleiro e para a mão. */
+.board-tile .dom { --u: inherit; }
+.dom-hand-tile .dom { --u: var(--hu); }
+
+@media (max-width: 860px) {
+  .app-shell.domino-mode.domino-mode { grid-template-rows: minmax(0, 1fr); }
+  .domino-mode .main-content, .domino-mode .view:not(.hidden),
+  .domino-mode .dom-view, .domino-mode .dom-layout { width: 100%; }
+  .domino-mode .dom-layout { grid-template-rows: minmax(0, 1fr); }
+  .dom-four-players .dom-opponents { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .dom-four-players .dom-seat { width: 100%; max-width: none; box-sizing: border-box; }
+  .dom-four-players .dom-seat-text { flex: 1; }
+  .dom-four-players .dom-seat-text small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+}

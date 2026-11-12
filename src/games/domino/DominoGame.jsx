@@ -109,7 +109,7 @@ function MiniHand({ hand, reveal }) {
   );
 }
 
-export default function DominoGame({ sdk, playerId, connected, active, onExitToHub, onFindOpponent, onInviteFriend }) {
+export default function DominoGame({ sdk, playerId, connected, active, onExitToHub, onFindOpponent, onInviteFriend, gameInfoOpen, onCloseGameInfo }) {
   const [screen, setScreen] = useState('lobby'); // 'lobby' | 'game' | 'opponent_left'
   const [mode, setMode] = useState(null); // 'solo' | 'local' | 'online'
   const [role, setRole] = useState(sdk.role);
@@ -121,7 +121,7 @@ export default function DominoGame({ sdk, playerId, connected, active, onExitToH
   const [curtain, setCurtain] = useState(false);
   const [status, setStatus] = useState('');
   const [opponentLeftInfo, setOpponentLeftInfo] = useState(null);
-  const [boardW, setBoardW] = useState(0);
+  const [boardSize, setBoardSize] = useState({ width: 0, height: 0 });
 
   const gameRef = useRef(null);
   const modeRef = useRef(null);
@@ -297,9 +297,10 @@ export default function DominoGame({ sdk, playerId, connected, active, onExitToH
   useEffect(() => {
     const el = boardWrapRef.current;
     if (!el) return undefined;
-    const ro = new ResizeObserver(() => setBoardW(el.clientWidth));
+    const measure = () => setBoardSize({ width: el.clientWidth, height: el.clientHeight });
+    const ro = new ResizeObserver(measure);
     ro.observe(el);
-    setBoardW(el.clientWidth);
+    measure();
     return () => ro.disconnect();
   }, [screen]);
 
@@ -406,17 +407,21 @@ export default function DominoGame({ sdk, playerId, connected, active, onExitToH
 
   /* --------------------------------- Layout --------------------------------- */
 
-  const wide = boardW || 640;
+  const wide = boardSize.width || 640;
   const H = wide < 540 ? 6 : 8;
-  const u = Math.max(14, Math.min(38, Math.floor(wide / (2 * H + 4))));
   const layout = useMemo(
     () => (game ? layoutChain(game.chain, game.centerIdx, H) : null),
     [game?.chain, game?.centerIdx, H], // eslint-disable-line react-hooks/exhaustive-deps
   );
+  const mobile = typeof window !== 'undefined' && window.matchMedia('(max-width: 860px)').matches;
+  const bounds = layout?.bbox;
+  const widthUnits = bounds ? Math.max(2 * H + 4, bounds.maxX - bounds.minX + 1) : 2 * H + 4;
+  const heightUnits = bounds ? Math.max(6, bounds.maxY - bounds.minY + 1.4) : 6;
+  const u = Math.max(1, Math.min(38, Math.floor(wide / widthUnits), mobile && boardSize.height ? Math.floor(boardSize.height / heightUnits) : 38));
   const emptyBoard = !game || game.chain.length === 0;
   const boxH = layout ? (layout.bbox.maxY - layout.bbox.minY) * u + u * 1.4 : 0;
-  const boardH = emptyBoard ? u * 6 : Math.max(u * 6, boxH);
-  const ox = wide / 2;
+  const boardH = mobile && boardSize.height ? boardSize.height : emptyBoard ? u * 6 : Math.max(u * 6, boxH);
+  const ox = bounds && !emptyBoard ? wide / 2 - (bounds.minX + bounds.maxX) * u / 2 : wide / 2;
   const oy = emptyBoard ? boardH / 2 : -layout.bbox.minY * u + u * 0.7 + Math.max(0, (boardH - boxH) / 2);
   const px = (p) => ({
     left: ox + p.x * u - (p.orient === 'h' ? u : u / 2),
@@ -480,7 +485,7 @@ export default function DominoGame({ sdk, playerId, connected, active, onExitToH
   const curPlayer = game ? game.players[game.turn] : null;
 
   return (
-    <div className="dom-view">
+    <div className={`dom-view ${game?.n === 4 ? 'dom-four-players' : ''}`}>
       <div className="dom-layout">
         <div className="dom-table-wrap">
           <div className="dom-table">
@@ -645,8 +650,10 @@ export default function DominoGame({ sdk, playerId, connected, active, onExitToH
           </div>
         </div>
 
-        {/* Painel lateral */}
-        <div className="dom-info-panel">
+        {/* Informações da partida */}
+        {gameInfoOpen && <div className="board-info-overlay" onClick={onCloseGameInfo}>
+        <div id="domino-info" className="dom-info-panel" role="dialog" aria-modal="true" aria-label="Informações da partida" onClick={(event) => event.stopPropagation()}>
+          <button type="button" className="board-info-close" onClick={onCloseGameInfo} aria-label="Fechar informações">×</button>
           {game && (
             <>
               <div className="dom-status-card">
@@ -704,6 +711,7 @@ export default function DominoGame({ sdk, playerId, connected, active, onExitToH
                   className="secondary-button"
                   onClick={() => {
                     if (confirm('Deseja sair da partida de Dominó?')) {
+                      onCloseGameInfo();
                       backToLobby(mode === 'online' ? 'Você abandonou a partida.' : '');
                     }
                   }}
@@ -714,6 +722,7 @@ export default function DominoGame({ sdk, playerId, connected, active, onExitToH
             </>
           )}
         </div>
+        </div>}
       </div>
 
       {/* Modais padrão do Hub */}
